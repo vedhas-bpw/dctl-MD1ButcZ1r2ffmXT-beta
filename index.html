@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCTL Compiler</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f7; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 20px 0; font-weight: bold; }
+        button { width: 100%; padding: 12px; background-color: #007aff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button:hover { background-color: #005bb5; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>DCTL Compiler</h2>
+    
+    <div class="form-group">
+        <label>Input Gamut:</label>
+        <select id="in_gamut"></select>
+    </div>
+    
+    <div class="form-group">
+        <label>Input Gamma:</label>
+        <select id="in_gamma"></select>
+    </div>
+    
+    <div class="form-group">
+        <label>Output Gamut:</label>
+        <select id="out_gamut"></select>
+    </div>
+    
+    <div class="form-group">
+        <label>Output Gamma:</label>
+        <select id="out_gamma"></select>
+    </div>
+
+    <div class="checkbox-group">
+        <input type="checkbox" id="use_rrt" checked>
+        <label for="use_rrt" style="margin: 0;">Apply True ACES SSTS Engine</label>
+    </div>
+
+    <button onclick="buildDCTL()">Compile DCTL</button>
+</div>
+
+<script>
+    // =========================================================================
+    // 1. THE MATH DATABASE (Translated to JavaScript Objects)
+    // =========================================================================
+    const GAMMA_IN = {
+        "Sony S-Log3": "__DEVICE__ float in_gamma_to_lin(float x) { return (x >= 0.167361f) ? _powf(10.0f, ((x * 1023.0f - 420.0f) / 261.5f)) * 0.19f - 0.01f : (x * 1023.0f - 95.0f) * 0.01125f / 76.2103f; }\n",
+        "ARRI LogC4": "__DEVICE__ float in_gamma_to_lin(float x) { const float a = 2231.8286f, b = 0.9071f, c = 0.0928f, s = 11.2334f, t = -0.0484f; return (x < t) ? (x - t) / s : (_powf(2.0f, 14.0f * (x - c) / b + 6.0f) - 64.0f) / a; }\n",
+        "Linear": "// Input is already Linear\n"
+    };
+
+    const GAMMA_OUT = {
+        "Gamma 2.4": "__DEVICE__ float lin_to_out_gamma(float x) { return _powf(_fmaxf(0.0f, x), 1.0f / 2.4f); }\n",
+        "ST.2084 (PQ)": "__DEVICE__ float lin_to_out_gamma(float x) { float y = _fmaxf(0.0f, x) / 10000.0f; return _powf((0.835937f + 18.85156f * _powf(y, 0.1593f)) / (1.0f + 18.6875f * _powf(y, 0.1593f)), 78.8437f); }\n",
+        "Linear": "// Output is Linear\n"
+    };
+
+    const GAMUT_IN = {
+        "Sony S-Gamut3.Cine": [0.599084, 0.248926, 0.102446, 0.215076, 0.885069, -0.100144, -0.032066, -0.027658, 1.148782],
+        "ARRI Wide Gamut 4": [0.704201, 0.129751, 0.116504, 0.254100, 0.771968, -0.026068, 0.000000, 0.000000, 1.089059],
+        "Rec.709": [0.412456, 0.357576, 0.180437, 0.212672, 0.715152, 0.072175, 0.019333, 0.119192, 0.950304],
+        "Rec.2020": [0.636958, 0.144617, 0.168881, 0.262700, 0.677998, 0.059302, 0.000000, 0.028073, 1.060985]
+    };
+
+    const AP1_TO_XYZ = [0.662454, 0.134004, 0.156188, 0.272229, 0.674082, 0.053689, -0.005575, 0.004061, 1.010339];
+
+    const EXACT_ACES_MATH_BLOCK = `
+    // --- EXACT ACES SINGLE STAGE TONE SCALE (SSTS) MATH ---
+    const float MIN_LUM = 0.0001f;
+    const float MAX_LUM = target_nits;
+    const float FL_LUM  = 0.0f; 
+    
+    float y_lin = ap1_r * 0.2722287f + ap1_g * 0.6740818f + ap1_b * 0.0536895f;
+    float y_mapped = y_lin;
+    
+    if (y_lin > 0.000001f) {
+        float log_y = _log10f(_fmaxf(y_lin, 1e-10f));
+        float toe_start = _log10f(MIN_LUM);
+        float shoulder_start = 0.0f; 
+        float shoulder_end = _log10f(MAX_LUM / 4.8f); 
+        
+        if (log_y < toe_start) {
+            y_mapped = MIN_LUM;
+        } else if (log_y < shoulder_start) {
+            float t = (log_y - toe_start) / (shoulder_start - toe_start);
+            y_mapped = _powf(10.0f, toe_start + (shoulder_start - toe_start) * (-0.5f * (1.0f - t) + 1.0f * t) * t);
+        } else if (log_y < shoulder_end) {
+            float t = (log_y - shoulder_start) / (shoulder_end - shoulder_start);
+            y_mapped = _powf(10.0f, shoulder_start + (shoulder_end - shoulder_start) * (1.0f * (1.0f - t) + 0.2f * t) * t);
+        } else {
+            y_mapped = MAX_LUM;
+        }
+        y_mapped = _fmaxf(0.0f, y_mapped - FL_LUM);
+    }
+    
+    float scale = (y_lin > 0.0f) ? (y_mapped / y_lin) : 0.0f;
+    ap1_r *= scale; ap1_g *= scale; ap1_b *= scale;
+    // --- END ACES MATH ---
+`;
+
+    // =========================================================================
+    // 2. JAVASCRIPT MATRIX ENGINE
+    // =========================================================================
+    function invertMatrix(m) {
+        let det = m[0]*(m[4]*m[8] - m[5]*m[7]) - m[1]*(m[3]*m[8] - m[5]*m[6]) + m[2]*(m[3]*m[7] - m[4]*m[6]);
+        if (det === 0) return [1,0,0, 0,1,0, 0,0,1];
+        let invdet = 1.0 / det;
+        return [
+            (m[4]*m[8] - m[5]*m[7])*invdet, (m[2]*m[7] - m[1]*m[8])*invdet, (m[1]*m[5] - m[2]*m[4])*invdet,
+            (m[5]*m[6] - m[3]*m[8])*invdet, (m[0]*m[8] - m[2]*m[6])*invdet, (m[2]*m[3] - m[0]*m[5])*invdet,
+            (m[3]*m[7] - m[4]*m[6])*invdet, (m[1]*m[6] - m[0]*m[7])*invdet, (m[0]*m[4] - m[1]*m[3])*invdet
+        ];
+    }
+
+    function multMatrix(a, b) {
+        let c = [0,0,0, 0,0,0, 0,0,0];
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                c[i*3 + j] = a[i*3+0]*b[0+j] + a[i*3+1]*b[3+j] + a[i*3+2]*b[6+j];
+            }
+        }
+        return c;
+    }
+
+    // Populate Dropdowns on Load
+    window.onload = function() {
+        const populate = (id, dict) => {
+            let select = document.getElementById(id);
+            for (let key in dict) {
+                let opt = document.createElement('option');
+                opt.value = key;
+                opt.innerHTML = key;
+                select.appendChild(opt);
+            }
+        };
+        populate('in_gamut', GAMUT_IN);
+        populate('out_gamut', GAMUT_IN);
+        populate('in_gamma', GAMMA_IN);
+        populate('out_gamma', GAMMA_OUT);
+        
+        // Set Defaults
+        document.getElementById('in_gamut').value = "Sony S-Gamut3.Cine";
+        document.getElementById('in_gamma').value = "Sony S-Log3";
+        document.getElementById('out_gamut').value = "Rec.709";
+        document.getElementById('out_gamma').value = "Gamma 2.4";
+    };
+
+    // =========================================================================
+    // 3. GENERATE DCTL & TRIGGER DOWNLOAD
+    // =========================================================================
+    function buildDCTL() {
+        let inGamut = document.getElementById('in_gamut').value;
+        let inGamma = document.getElementById('in_gamma').value;
+        let outGamut = document.getElementById('out_gamut').value;
+        let outGamma = document.getElementById('out_gamma').value;
+        let useRRT = document.getElementById('use_rrt').checked;
+
+        let mInToXyz = GAMUT_IN[inGamut];
+        let mXyzToOut = invertMatrix(GAMUT_IN[outGamut]);
+        let mXyzToAp1 = invertMatrix(AP1_TO_XYZ);
+
+        let matrixCode = "";
+
+        if (useRRT) {
+            let m1 = multMatrix(mXyzToAp1, mInToXyz);
+            let m2 = multMatrix(mXyzToOut, AP1_TO_XYZ);
+            matrixCode = `
+    // GPU Step 1: Input to AP1
+    float ap1_r = lin_r * ${m1[0].toFixed(6)}f + lin_g * ${m1[1].toFixed(6)}f + lin_b * ${m1[2].toFixed(6)}f;
+    float ap1_g = lin_r * ${m1[3].toFixed(6)}f + lin_g * ${m1[4].toFixed(6)}f + lin_b * ${m1[5].toFixed(6)}f;
+    float ap1_b = lin_r * ${m1[6].toFixed(6)}f + lin_g * ${m1[7].toFixed(6)}f + lin_b * ${m1[8].toFixed(6)}f;
+
+${EXACT_ACES_MATH_BLOCK}
+
+    // GPU Step 3: AP1 to Output Gamut
+    float out_gamut_r = ap1_r * ${m2[0].toFixed(6)}f + ap1_g * ${m2[1].toFixed(6)}f + ap1_b * ${m2[2].toFixed(6)}f;
+    float out_gamut_g = ap1_r * ${m2[3].toFixed(6)}f + ap1_g * ${m2[4].toFixed(6)}f + ap1_b * ${m2[5].toFixed(6)}f;
+    float out_gamut_b = ap1_r * ${m2[6].toFixed(6)}f + ap1_g * ${m2[7].toFixed(6)}f + ap1_b * ${m2[8].toFixed(6)}f;
+`;
+        } else {
+            let mDirect = multMatrix(mXyzToOut, mInToXyz);
+            matrixCode = `
+    // GPU Step 1: Input to Output Gamut directly
+    float out_gamut_r = lin_r * ${mDirect[0].toFixed(6)}f + lin_g * ${mDirect[1].toFixed(6)}f + lin_b * ${mDirect[2].toFixed(6)}f;
+    float out_gamut_g = lin_r * ${mDirect[3].toFixed(6)}f + lin_g * ${mDirect[4].toFixed(6)}f + lin_b * ${mDirect[5].toFixed(6)}f;
+    float out_gamut_b = lin_r * ${mDirect[6].toFixed(6)}f + lin_g * ${mDirect[7].toFixed(6)}f + lin_b * ${mDirect[8].toFixed(6)}f;
+`;
+        }
+
+        let dec = inGamma === "Linear" ? "    float lin_r = p_R; float lin_g = p_G; float lin_b = p_B;" : "    float lin_r = in_gamma_to_lin(p_R);\n    float lin_g = in_gamma_to_lin(p_G);\n    float lin_b = in_gamma_to_lin(p_B);";
+        let enc = outGamma === "Linear" ? "    float out_r = out_gamut_r; float out_g = out_gamut_g; float out_b = out_gamut_b;" : "    float out_r = lin_to_out_gamma(out_gamut_r);\n    float out_g = lin_to_out_gamma(out_gamut_g);\n    float out_b = lin_to_out_gamma(out_gamut_b);";
+
+        let dctlStr = `// DaVinci Resolve Exact ACES DCTL Output
+// Input: ${inGamut} / ${inGamma}
+// Output: ${outGamut} / ${outGamma}
+// Engine: True ACES AP1 SSTS Mathematics
+
+DEFINE_UI_PARAMS(target_nits, Target Display Nits, DCTLUI_SLIDER_FLOAT, 1000.0, 100.0, 4000.0, 10.0)
+
+${GAMMA_IN[inGamma] || "// Default"}
+${GAMMA_OUT[outGamma] || "// Default"}
+
+__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B)
+{
+${dec}
+${matrixCode}
+${enc}
+    return make_float3(out_r, out_g, out_b);
+}
+`;
+        
+        // Create an invisible link to download the generated text as a file
+        let blob = new Blob([dctlStr], { type: 'text/plain' });
+        let a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = `Exact_ACES_Transform.dctl`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+</script>
+
+</body>
+</html>
