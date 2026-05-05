@@ -6,15 +6,90 @@
     <meta name="robots" content="noindex, nofollow">
     <title>DCTL Compiler</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f7; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { text-align: center; margin-top: 0; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
-        select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; }
-        .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 20px 0; font-weight: bold; }
-        button { width: 100%; padding: 12px; background-color: #007aff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background-color: #005bb5; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #161618; /* DaVinci Resolve style dark background */
+            color: #e0e0e0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .container { 
+            background: #232326; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6); 
+            width: 100%; 
+            max-width: 400px; 
+            border: 1px solid #333;
+        }
+        h2 { 
+            text-align: center; 
+            margin-top: 0; 
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+        label { 
+            display: block; 
+            font-weight: bold; 
+            margin-bottom: 5px; 
+            font-size: 13px; 
+            color: #a0a0a5; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        select { 
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #3e3e42; 
+            background-color: #1a1a1c; 
+            color: #ffffff;
+            font-size: 14px; 
+            outline: none;
+            appearance: none;
+        }
+        select:focus {
+            border-color: #007aff;
+        }
+        .btn-swap { 
+            width: 100%; 
+            padding: 8px; 
+            background-color: #2c2c30; 
+            color: #a0a0a5; 
+            border: 1px solid #3e3e42; 
+            border-radius: 6px; 
+            font-size: 13px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-bottom: 15px;
+            transition: all 0.2s; 
+        }
+        .btn-swap:hover { 
+            background-color: #3a3a40; 
+            color: #ffffff;
+        }
+        .btn-compile { 
+            width: 100%; 
+            padding: 12px; 
+            background-color: #007aff; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 15px;
+            transition: background 0.2s; 
+        }
+        .btn-compile:hover { 
+            background-color: #005bb5; 
+        }
     </style>
 </head>
 <body>
@@ -23,31 +98,28 @@
     <h2>DCTL Compiler</h2>
     
     <div class="form-group">
-        <label>Input Gamut:</label>
+        <label>Input Gamut</label>
         <select id="in_gamut"></select>
     </div>
     
     <div class="form-group">
-        <label>Input Gamma:</label>
+        <label>Input Gamma</label>
         <select id="in_gamma"></select>
     </div>
+
+    <button class="btn-swap" onclick="swap()">↑↓ Swap Input & Output</button>
     
     <div class="form-group">
-        <label>Output Gamut:</label>
+        <label>Output Gamut</label>
         <select id="out_gamut"></select>
     </div>
     
     <div class="form-group">
-        <label>Output Gamma:</label>
+        <label>Output Gamma</label>
         <select id="out_gamma"></select>
     </div>
 
-    <div class="checkbox-group">
-        <input type="checkbox" id="use_rrt" checked>
-        <label for="use_rrt" style="margin: 0;">Apply True ACES SSTS Engine</label>
-    </div>
-
-    <button onclick="buildDCTL()">Compile DCTL</button>
+    <button class="btn-compile" onclick="buildDCTL()">Compile DCTL</button>
 </div>
 
 <script>
@@ -205,7 +277,7 @@
 `;
 
     // =========================================================================
-    // 3. JAVASCRIPT MATRIX ENGINE (For lightweight pre-calculations)
+    // 3. JAVASCRIPT LOGIC & UI FUNCTIONS
     // =========================================================================
     function invertMatrix(m) {
         let det = m[0]*(m[4]*m[8] - m[5]*m[7]) - m[1]*(m[3]*m[8] - m[5]*m[6]) + m[2]*(m[3]*m[7] - m[4]*m[6]);
@@ -228,6 +300,22 @@
         return c;
     }
 
+    // Function to swap Inputs and Outputs
+    function swap() {
+        let inGamut = document.getElementById('in_gamut');
+        let inGamma = document.getElementById('in_gamma');
+        let outGamut = document.getElementById('out_gamut');
+        let outGamma = document.getElementById('out_gamma');
+
+        let tempGamut = inGamut.value;
+        inGamut.value = outGamut.value;
+        outGamut.value = tempGamut;
+
+        let tempGamma = inGamma.value;
+        inGamma.value = outGamma.value;
+        outGamma.value = tempGamma;
+    }
+
     // Populate Dropdowns on Load
     window.onload = function() {
         const populate = (id, dict) => {
@@ -244,7 +332,6 @@
         populate('in_gamma', GAMMA_IN);
         populate('out_gamma', GAMMA_OUT);
         
-        // Set Defaults to common industry standards
         document.getElementById('in_gamut').value = "Sony S-Gamut3.Cine";
         document.getElementById('in_gamma').value = "Sony S-Log3";
         document.getElementById('out_gamut').value = "Rec.709";
@@ -259,18 +346,16 @@
         let inGamma = document.getElementById('in_gamma').value;
         let outGamut = document.getElementById('out_gamut').value;
         let outGamma = document.getElementById('out_gamma').value;
-        let useRRT = document.getElementById('use_rrt').checked;
 
         let mInToXyz = GAMUT_IN[inGamut];
         let mXyzToOut = invertMatrix(GAMUT_IN[outGamut]);
         let mXyzToAp1 = invertMatrix(AP1_TO_XYZ);
 
-        let matrixCode = "";
-
-        if (useRRT) {
-            let m1 = multMatrix(mXyzToAp1, mInToXyz);
-            let m2 = multMatrix(mXyzToOut, AP1_TO_XYZ);
-            matrixCode = `
+        // Precalculate full path using ACES AP1
+        let m1 = multMatrix(mXyzToAp1, mInToXyz);
+        let m2 = multMatrix(mXyzToOut, AP1_TO_XYZ);
+        
+        let matrixCode = `
     // GPU Step 1: Input to AP1
     float ap1_r = lin_r * ${m1[0].toFixed(6)}f + lin_g * ${m1[1].toFixed(6)}f + lin_b * ${m1[2].toFixed(6)}f;
     float ap1_g = lin_r * ${m1[3].toFixed(6)}f + lin_g * ${m1[4].toFixed(6)}f + lin_b * ${m1[5].toFixed(6)}f;
@@ -283,15 +368,6 @@ ${EXACT_ACES_MATH_BLOCK}
     float out_gamut_g = ap1_r * ${m2[3].toFixed(6)}f + ap1_g * ${m2[4].toFixed(6)}f + ap1_b * ${m2[5].toFixed(6)}f;
     float out_gamut_b = ap1_r * ${m2[6].toFixed(6)}f + ap1_g * ${m2[7].toFixed(6)}f + ap1_b * ${m2[8].toFixed(6)}f;
 `;
-        } else {
-            let mDirect = multMatrix(mXyzToOut, mInToXyz);
-            matrixCode = `
-    // GPU Step 1: Input to Output Gamut directly
-    float out_gamut_r = lin_r * ${mDirect[0].toFixed(6)}f + lin_g * ${mDirect[1].toFixed(6)}f + lin_b * ${mDirect[2].toFixed(6)}f;
-    float out_gamut_g = lin_r * ${mDirect[3].toFixed(6)}f + lin_g * ${mDirect[4].toFixed(6)}f + lin_b * ${mDirect[5].toFixed(6)}f;
-    float out_gamut_b = lin_r * ${mDirect[6].toFixed(6)}f + lin_g * ${mDirect[7].toFixed(6)}f + lin_b * ${mDirect[8].toFixed(6)}f;
-`;
-        }
 
         let dec = inGamma === "Linear" ? "    float lin_r = p_R; float lin_g = p_G; float lin_b = p_B;" : "    float lin_r = in_gamma_to_lin(p_R);\n    float lin_g = in_gamma_to_lin(p_G);\n    float lin_b = in_gamma_to_lin(p_B);";
         let enc = outGamma === "Linear" ? "    float out_r = out_gamut_r; float out_g = out_gamut_g; float out_b = out_gamut_b;" : "    float out_r = lin_to_out_gamma(out_gamut_r);\n    float out_g = lin_to_out_gamma(out_gamut_g);\n    float out_b = lin_to_out_gamma(out_gamut_b);";
