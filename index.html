@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="robots" content="noindex, nofollow">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>DCTL Compiler</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f7; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
@@ -52,29 +52,124 @@
 
 <script>
     // =========================================================================
-    // 1. THE MATH DATABASE (Translated to JavaScript Objects)
+    // 1. THE MATH DATABASE (Master List)
     // =========================================================================
     const GAMMA_IN = {
-        "Sony S-Log3": "__DEVICE__ float in_gamma_to_lin(float x) { return (x >= 0.167361f) ? _powf(10.0f, ((x * 1023.0f - 420.0f) / 261.5f)) * 0.19f - 0.01f : (x * 1023.0f - 95.0f) * 0.01125f / 76.2103f; }\n",
+        "ACEScc": "__DEVICE__ float in_gamma_to_lin(float x) { return (x <= -0.358447f) ? (_powf(2.0f, x * 17.52f - 9.72f) - 0.072905f) / 10.5402f : _powf(2.0f, x * 17.52f - 9.72f); }\n",
+        "ACEScct": "__DEVICE__ float in_gamma_to_lin(float x) { return (x <= 0.155251f) ? (x - 0.072905f) / 10.5402f : _powf(2.0f, x * 17.52f - 9.72f); }\n",
+        "ACESproxy": "__DEVICE__ float in_gamma_to_lin(float x) { return (x <= 0.226f) ? (_powf(2.0f, (x * 1023.0f - 434.0f)/175.2f) - 0.072905f) / 10.5402f : _powf(2.0f, (x * 1023.0f - 434.0f)/175.2f); }\n",
+        "ARRI LogC": "__DEVICE__ float in_gamma_to_lin(float x) { return (x > 0.149658f) ? (_powf(10.0f, (x - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (x - 0.092809f) / 5.367655f; }\n",
+        "ARRI LogC3": "__DEVICE__ float in_gamma_to_lin(float x) { return (x > 0.149658f) ? (_powf(10.0f, (x - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (x - 0.092809f) / 5.367655f; }\n",
         "ARRI LogC4": "__DEVICE__ float in_gamma_to_lin(float x) { const float a = 2231.8286f, b = 0.9071f, c = 0.0928f, s = 11.2334f, t = -0.0484f; return (x < t) ? (x - t) / s : (_powf(2.0f, 14.0f * (x - c) / b + 6.0f) - 64.0f) / a; }\n",
-        "Linear": "// Input is already Linear\n"
+        "Blackmagic Film": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(10.0f, (x - 0.3297f) / 0.218f) - 0.015f; }\n",
+        "Blackmagic Film Gen 5": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.064f) ? x / 7.5f : _powf(2.0f, (x - 0.5f) / 0.125f); }\n",
+        "Canon Log": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.07305f) ? x / 10.159f : _powf(10.0f, (x - 0.073059f) / 0.24357f) - 0.0716f; }\n",
+        "Canon Log 2": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.035388f) ? x / 10.1595f : _powf(10.0f, (x - 0.073059f) / 0.24357f) - 0.0716f; }\n",
+        "Canon Log 3": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.0988f) ? (x - 0.0631f) / 2.51196f : _powf(10.0f, (x - 0.0766f) / 0.2608f) - 0.011f; }\n",
+        "Cineon Film Log": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(10.0f, (1023.0f * x - 685.0f) / 300.0f); }\n",
+        "DJI D-Log": "__DEVICE__ float in_gamma_to_lin(float x) { return (x <= 0.14f) ? (x - 0.0929f) / 6.025f : _powf(10.0f, (x - 0.584555f) / 0.256663f) - 0.014f; }\n",
+        "DJI D-Log M": "__DEVICE__ float in_gamma_to_lin(float x) { return (x <= 0.004f) ? x / 5.0f : _powf(10.0f, (x - 0.393f) / 0.224f) - 0.002f; }\n",
+        "Fujifilm F-Log": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.10068f) ? (x - 0.0452f) / 5.55556f : (_powf(10.0f, (x - 0.4146f) / 0.3340f) - 0.0152f) / 5.55556f; }\n",
+        "Fujifilm F-Log2": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.10068f) ? (x - 0.092864f) / 5.555556f : (_powf(10.0f, (x - 0.38453f) / 0.245281f) - 0.064829f) / 5.555556f; }\n",
+        "Linear": "// Input is already Linear\n",
+        "Panasonic V-Log": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.185f) ? (x - 0.125f) / 5.6f : (_powf(10.0f, (x - 0.432699f) / 0.18f) - 0.09f) / 8.7597f; }\n",
+        "RED Log3G10": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.0f) ? (x / 15.1927f) - 0.01f : (_powf(10.0f, x / 0.224282f) - 1.0f) / 155.975327f - 0.01f; }\n",
+        "Sony S-Log": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(10.0f, ((x * 1023.0f - 400.0f) / 261.5f)) - 0.03f; }\n",
+        "Sony S-Log2": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(10.0f, ((x * 1023.0f - 395.0f) / 261.5f)) - 0.03f; }\n",
+        "Sony S-Log3": "__DEVICE__ float in_gamma_to_lin(float x) { return (x >= 0.167361f) ? _powf(10.0f, ((x * 1023.0f - 420.0f) / 261.5f)) * 0.19f - 0.01f : (x * 1023.0f - 95.0f) * 0.01125f / 76.2103f; }\n",
+        "Apple Log": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.2052f) ? _powf((x / 47.2871f), 0.5f) - 0.0564f : _powf(2.0f, (x - 0.6933f) / 0.0855f) - 0.0096f; }\n",
+        "DaVinci Intermediate": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.02719f) ? x / 10.367207f : _powf(2.0f, (x - 0.066467f) / 0.005322f) - 0.046683f; }\n",
+        "Rec.709": "__DEVICE__ float in_gamma_to_lin(float x) { return (x < 0.081f) ? x / 4.5f : _powf((x + 0.099f) / 1.099f, 1.0f / 0.45f); }\n",
+        "Rec.709-A": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(_fmaxf(0.0f, x), 1.961f); }\n",
+        "Gamma 2.2": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(_fmaxf(0.0f, x), 2.2f); }\n",
+        "Gamma 2.4": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(_fmaxf(0.0f, x), 2.4f); }\n",
+        "Gamma 2.6": "__DEVICE__ float in_gamma_to_lin(float x) { return _powf(_fmaxf(0.0f, x), 2.6f); }\n",
+        "sRGB": "__DEVICE__ float in_gamma_to_lin(float x) { return (x <= 0.04045f) ? x / 12.92f : _powf((x + 0.055f) / 1.055f, 2.4f); }\n",
+        "ST.2084 (PQ)": "__DEVICE__ float in_gamma_to_lin(float x) { float num = _fmaxf(_powf(x, 1.0f/78.84375f) - 0.8359375f, 0.0f); float den = 18.8515625f - 18.6875f * _powf(x, 1.0f/78.84375f); return _powf(num / den, 1.0f/0.15930175f) * 10000.0f; }\n",
+        "ST.2084 (1000 nits)": "__DEVICE__ float in_gamma_to_lin(float x) { float num = _fmaxf(_powf(x, 1.0f/78.84375f) - 0.8359375f, 0.0f); float den = 18.8515625f - 18.6875f * _powf(x, 1.0f/78.84375f); return _powf(num / den, 1.0f/0.15930175f) * 1000.0f; }\n",
+        "ST.2084 (2000 nits)": "__DEVICE__ float in_gamma_to_lin(float x) { float num = _fmaxf(_powf(x, 1.0f/78.84375f) - 0.8359375f, 0.0f); float den = 18.8515625f - 18.6875f * _powf(x, 1.0f/78.84375f); return _powf(num / den, 1.0f/0.15930175f) * 2000.0f; }\n",
+        "ST.2084 (4000 nits)": "__DEVICE__ float in_gamma_to_lin(float x) { float num = _fmaxf(_powf(x, 1.0f/78.84375f) - 0.8359375f, 0.0f); float den = 18.8515625f - 18.6875f * _powf(x, 1.0f/78.84375f); return _powf(num / den, 1.0f/0.15930175f) * 4000.0f; }\n",
+        "ST.2084 (10000 nits)": "__DEVICE__ float in_gamma_to_lin(float x) { float num = _fmaxf(_powf(x, 1.0f/78.84375f) - 0.8359375f, 0.0f); float den = 18.8515625f - 18.6875f * _powf(x, 1.0f/78.84375f); return _powf(num / den, 1.0f/0.15930175f) * 10000.0f; }\n",
+        "HLG": "__DEVICE__ float in_gamma_to_lin(float x) { float a = 0.17883277f, b = 0.28466892f, c = 0.55991073f; return (x <= 0.5f) ? (x*x)/3.0f : (_expf((x - c)/a) + b) / 12.0f; }\n"
     };
 
     const GAMMA_OUT = {
+        "ACEScc": "__DEVICE__ float lin_to_out_gamma(float x) { return (x <= 0.0000305f) ? 10.5402f * x + 0.072905f : (_log2f(x) + 9.72f) / 17.52f; }\n",
+        "ACEScct": "__DEVICE__ float lin_to_out_gamma(float x) { return (x <= 0.0078125f) ? 10.5402f * x + 0.072905f : (_log2f(x) + 9.72f) / 17.52f; }\n",
+        "ACESproxy": "__DEVICE__ float lin_to_out_gamma(float x) { return (x <= 0.007812f) ? 10.5402f * x + 0.0729f : (_log2f(x) * 175.2f + 434.0f) / 1023.0f; }\n",
+        "ARRI LogC": "__DEVICE__ float lin_to_out_gamma(float x) { return (x > 0.010591f) ? 0.247189f * _log10f(5.555556f * x + 0.052272f) + 0.385537f : 5.367655f * x + 0.092809f; }\n",
+        "ARRI LogC3": "__DEVICE__ float lin_to_out_gamma(float x) { return (x > 0.010591f) ? 0.247189f * _log10f(5.555556f * x + 0.052272f) + 0.385537f : 5.367655f * x + 0.092809f; }\n",
+        "ARRI LogC4": "__DEVICE__ float lin_to_out_gamma(float x) { const float a = 2231.8286f, b = 0.9071f, c = 0.0928f, s = 11.2334f, t = -0.0484f; return (x < t) ? (x - t) / s : (_log2f(x * a + 64.0f) - 6.0f) / 14.0f * b + c; }\n",
+        "Blackmagic Film": "__DEVICE__ float lin_to_out_gamma(float x) { return 0.218f * _log10f(x + 0.015f) + 0.3297f; }\n",
+        "Blackmagic Film Gen 5": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.0085f) ? x * 7.5f : 0.125f * _log2f(x) + 0.5f; }\n",
+        "Canon Log": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.00072f) ? x * 10.159f : 0.24357f * _log10f(x + 0.0716f) + 0.073059f; }\n",
+        "Canon Log 2": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.00348f) ? x * 10.1595f : 0.24357f * _log10f(x + 0.0716f) + 0.073059f; }\n",
+        "Canon Log 3": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.01419f) ? x * 2.51196f + 0.0631f : 0.2608f * _log10f(x + 0.011f) + 0.0766f; }\n",
+        "Cineon Film Log": "__DEVICE__ float lin_to_out_gamma(float x) { return ((300.0f * _log10f(x)) + 685.0f) / 1023.0f; }\n",
+        "DJI D-Log": "__DEVICE__ float lin_to_out_gamma(float x) { return (x <= 0.0078f) ? 6.025f * x + 0.0929f : 0.256663f * _log10f(x + 0.014f) + 0.584555f; }\n",
+        "DJI D-Log M": "__DEVICE__ float lin_to_out_gamma(float x) { return (x <= 0.0008f) ? x * 5.0f : 0.224f * _log10f(x + 0.002f) + 0.393f; }\n",
+        "Fujifilm F-Log": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.00089f) ? 5.55556f * x + 0.0452f : 0.3340f * _log10f(5.55556f * x + 0.0152f) + 0.4146f; }\n",
+        "Fujifilm F-Log2": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.0014f) ? 5.55556f * x + 0.09286f : 0.245281f * _log10f(5.55556f * x + 0.064829f) + 0.38453f; }\n",
+        "Linear": "// Output is Linear\n",
+        "Panasonic V-Log": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.0108f) ? 5.6f * x + 0.125f : 0.18f * _log10f(8.7597f * x + 0.09f) + 0.432699f; }\n",
+        "RED Log3G10": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < -0.01f) ? 15.1927f * (x + 0.01f) : 0.224282f * _log10f(155.975327f * (x + 0.01f) + 1.0f); }\n",
+        "Sony S-Log": "__DEVICE__ float lin_to_out_gamma(float x) { return (261.5f * _log10f(x + 0.03f) + 400.0f) / 1023.0f; }\n",
+        "Sony S-Log2": "__DEVICE__ float lin_to_out_gamma(float x) { return (261.5f * _log10f(x + 0.03f) + 395.0f) / 1023.0f; }\n",
+        "Sony S-Log3": "__DEVICE__ float lin_to_out_gamma(float x) { return (x >= 0.01125f) ? (261.5f * _log10f((x + 0.01f) / 0.19f) + 420.0f) / 1023.0f : (x * 76.2103f / 0.01125f + 95.0f) / 1023.0f; }\n",
+        "Apple Log": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.0052f) ? 47.2871f * _powf(x + 0.0564f, 2.0f) : 0.0855f * _log2f(x + 0.0096f) + 0.6933f; }\n",
+        "DaVinci Intermediate": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.002624f) ? x * 10.367207f : 0.005322f * _log2f(x + 0.046683f) + 0.066467f; }\n",
+        "Rec.709": "__DEVICE__ float lin_to_out_gamma(float x) { return (x < 0.018f) ? x * 4.5f : 1.099f * _powf(x, 0.45f) - 0.099f; }\n",
+        "Rec.709-A": "__DEVICE__ float lin_to_out_gamma(float x) { return _powf(_fmaxf(0.0f, x), 1.0f / 1.961f); }\n",
+        "Gamma 2.2": "__DEVICE__ float lin_to_out_gamma(float x) { return _powf(_fmaxf(0.0f, x), 1.0f / 2.2f); }\n",
         "Gamma 2.4": "__DEVICE__ float lin_to_out_gamma(float x) { return _powf(_fmaxf(0.0f, x), 1.0f / 2.4f); }\n",
+        "Gamma 2.6": "__DEVICE__ float lin_to_out_gamma(float x) { return _powf(_fmaxf(0.0f, x), 1.0f / 2.6f); }\n",
+        "sRGB": "__DEVICE__ float lin_to_out_gamma(float x) { return (x <= 0.0031308f) ? x * 12.92f : 1.055f * _powf(x, 1.0f / 2.4f) - 0.055f; }\n",
         "ST.2084 (PQ)": "__DEVICE__ float lin_to_out_gamma(float x) { float y = _fmaxf(0.0f, x) / 10000.0f; return _powf((0.835937f + 18.85156f * _powf(y, 0.1593f)) / (1.0f + 18.6875f * _powf(y, 0.1593f)), 78.8437f); }\n",
-        "Linear": "// Output is Linear\n"
+        "ST.2084 (1000 nits)": "__DEVICE__ float lin_to_out_gamma(float x) { float y = _fmaxf(0.0f, x) / 1000.0f; return _powf((0.835937f + 18.85156f * _powf(y, 0.1593f)) / (1.0f + 18.6875f * _powf(y, 0.1593f)), 78.8437f); }\n",
+        "ST.2084 (2000 nits)": "__DEVICE__ float lin_to_out_gamma(float x) { float y = _fmaxf(0.0f, x) / 2000.0f; return _powf((0.835937f + 18.85156f * _powf(y, 0.1593f)) / (1.0f + 18.6875f * _powf(y, 0.1593f)), 78.8437f); }\n",
+        "ST.2084 (4000 nits)": "__DEVICE__ float lin_to_out_gamma(float x) { float y = _fmaxf(0.0f, x) / 4000.0f; return _powf((0.835937f + 18.85156f * _powf(y, 0.1593f)) / (1.0f + 18.6875f * _powf(y, 0.1593f)), 78.8437f); }\n",
+        "ST.2084 (10000 nits)": "__DEVICE__ float lin_to_out_gamma(float x) { float y = _fmaxf(0.0f, x) / 10000.0f; return _powf((0.835937f + 18.85156f * _powf(y, 0.1593f)) / (1.0f + 18.6875f * _powf(y, 0.1593f)), 78.8437f); }\n",
+        "HLG": "__DEVICE__ float lin_to_out_gamma(float x) { float a = 0.17883277f, b = 0.28466892f, c = 0.55991073f; return (x <= 1.0f/12.0f) ? _sqrtf(3.0f * x) : a * _logf(12.0f * x - b) + c; }\n"
     };
 
     const GAMUT_IN = {
-        "Sony S-Gamut3.Cine": [0.599084, 0.248926, 0.102446, 0.215076, 0.885069, -0.100144, -0.032066, -0.027658, 1.148782],
+        "ACES AP0": [0.952552, 0.000000, 0.000094, 0.343966, 0.728166, -0.072132, 0.000000, 0.000000, 1.008825],
+        "ACES AP1": [0.662454, 0.134004, 0.156188, 0.272229, 0.674082, 0.053689, -0.005575, 0.004061, 1.010339],
+        "ARRI Wide Gamut": [0.648107, 0.170624, 0.131754, 0.264771, 0.755490, -0.020261, 0.005476, 0.015099, 1.068383],
+        "ARRI Wide Gamut 3": [0.680206, 0.236137, 0.034113, 0.285065, 0.733895, -0.018960, -0.020584, -0.069794, 1.179461],
         "ARRI Wide Gamut 4": [0.704201, 0.129751, 0.116504, 0.254100, 0.771968, -0.026068, 0.000000, 0.000000, 1.089059],
+        "Blackmagic Design": [0.528434, 0.254103, 0.167948, 0.262590, 0.812328, -0.074918, 0.008892, -0.001962, 1.081829],
+        "Blackmagic Design Wide Gamut": [0.584340, 0.207860, 0.158285, 0.279624, 0.758368, -0.037992, -0.014238, 0.017774, 1.085322],
+        "Blackmagic Design Wide Gamut Gen 4": [0.639144, 0.152864, 0.158438, 0.264332, 0.781600, -0.045932, -0.015112, -0.018804, 1.122980],
+        "Blackmagic Design Wide Gamut Gen 5": [0.639144, 0.152864, 0.158438, 0.264332, 0.781600, -0.045932, -0.015112, -0.018804, 1.122980],
+        "Canon Cinema Gamut": [0.674753, 0.158498, 0.117196, 0.246114, 0.793361, -0.039474, -0.012586, -0.003923, 1.105574],
+        "DJI D-Gamut": [0.637500, 0.144700, 0.168200, 0.262800, 0.678200, 0.059000, 0.000000, 0.028100, 1.060900],
+        "Fujifilm F-Gamut": [0.609400, 0.220100, 0.120900, 0.245800, 0.817500, -0.063300, -0.007600, -0.025500, 1.122200],
+        "Panasonic V-Gamut": [0.679644, 0.152211, 0.118600, 0.260686, 0.774894, -0.035580, -0.009310, -0.004612, 1.102980],
+        "REDWideGamutRGB": [0.735275, 0.068609, 0.146571, 0.286694, 0.842979, -0.129673, -0.079681, -0.347343, 1.516081],
+        "Sony S-Gamut": [0.706482, 0.128801, 0.115162, 0.253634, 0.771923, -0.025557, 0.000000, 0.000000, 1.089058],
+        "Sony S-Gamut3": [0.706482, 0.128801, 0.115162, 0.253634, 0.771923, -0.025557, 0.000000, 0.000000, 1.089058],
+        "Sony S-Gamut3.Cine": [0.599084, 0.248926, 0.102446, 0.215076, 0.885069, -0.100144, -0.032066, -0.027658, 1.148782],
+        "DaVinci Wide Gamut": [0.700622, 0.148775, 0.101060, 0.274119, 0.873632, -0.147751, -0.098963, -0.137895, 1.325916],
+        "Rec.601 (525)": [0.393500, 0.365300, 0.191600, 0.212400, 0.701100, 0.086600, 0.018700, 0.111900, 0.958200],
+        "Rec.601 (625)": [0.430600, 0.341500, 0.178300, 0.222000, 0.706700, 0.071300, 0.020200, 0.129500, 0.939100],
         "Rec.709": [0.412456, 0.357576, 0.180437, 0.212672, 0.715152, 0.072175, 0.019333, 0.119192, 0.950304],
-        "Rec.2020": [0.636958, 0.144617, 0.168881, 0.262700, 0.677998, 0.059302, 0.000000, 0.028073, 1.060985]
+        "Rec.709-A": [0.412456, 0.357576, 0.180437, 0.212672, 0.715152, 0.072175, 0.019333, 0.119192, 0.950304],
+        "Rec.2020": [0.636958, 0.144617, 0.168881, 0.262700, 0.677998, 0.059302, 0.000000, 0.028073, 1.060985],
+        "Rec.2100": [0.636958, 0.144617, 0.168881, 0.262700, 0.677998, 0.059302, 0.000000, 0.028073, 1.060985],
+        "DCI-P3": [0.445169, 0.277134, 0.141971, 0.209491, 0.721595, 0.068913, 0.000000, 0.047060, 0.952939],
+        "DCI-P3 D65": [0.486570, 0.265667, 0.198217, 0.228974, 0.691738, 0.079286, 0.000000, 0.045113, 1.043944],
+        "sRGB": [0.412456, 0.357576, 0.180437, 0.212672, 0.715152, 0.072175, 0.019333, 0.119192, 0.950304],
+        "XYZ (CIE XYZ)": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        "Linear": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
     };
 
+    // Constant mathematical anchor for true ACES calculations
     const AP1_TO_XYZ = [0.662454, 0.134004, 0.156188, 0.272229, 0.674082, 0.053689, -0.005575, 0.004061, 1.010339];
 
+    // =========================================================================
+    // 2. THE TRUE ACES 2.0 SSTS ENGINE BLOCK (Explicit Math)
+    // =========================================================================
     const EXACT_ACES_MATH_BLOCK = `
     // --- EXACT ACES SINGLE STAGE TONE SCALE (SSTS) MATH ---
     const float MIN_LUM = 0.0001f;
@@ -110,7 +205,7 @@
 `;
 
     // =========================================================================
-    // 2. JAVASCRIPT MATRIX ENGINE
+    // 3. JAVASCRIPT MATRIX ENGINE (For lightweight pre-calculations)
     // =========================================================================
     function invertMatrix(m) {
         let det = m[0]*(m[4]*m[8] - m[5]*m[7]) - m[1]*(m[3]*m[8] - m[5]*m[6]) + m[2]*(m[3]*m[7] - m[4]*m[6]);
@@ -149,7 +244,7 @@
         populate('in_gamma', GAMMA_IN);
         populate('out_gamma', GAMMA_OUT);
         
-        // Set Defaults
+        // Set Defaults to common industry standards
         document.getElementById('in_gamut').value = "Sony S-Gamut3.Cine";
         document.getElementById('in_gamma').value = "Sony S-Log3";
         document.getElementById('out_gamut').value = "Rec.709";
@@ -157,7 +252,7 @@
     };
 
     // =========================================================================
-    // 3. GENERATE DCTL & TRIGGER DOWNLOAD
+    // 4. GENERATE EXACT DCTL & TRIGGER DOWNLOAD
     // =========================================================================
     function buildDCTL() {
         let inGamut = document.getElementById('in_gamut').value;
@@ -220,7 +315,6 @@ ${enc}
 }
 `;
         
-        // Create an invisible link to download the generated text as a file
         let blob = new Blob([dctlStr], { type: 'text/plain' });
         let a = document.createElement('a');
         a.href = window.URL.createObjectURL(blob);
