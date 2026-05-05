@@ -74,6 +74,29 @@
             background-color: #3a3a40; 
             color: #ffffff;
         }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #1a1a1c;
+            border-radius: 6px;
+            border: 1px solid #3e3e42;
+        }
+        .checkbox-container input {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .checkbox-container label {
+            margin: 0;
+            color: #e0e0e0;
+            text-transform: none;
+            font-weight: normal;
+            font-size: 13px;
+            cursor: pointer;
+        }
         .btn-compile { 
             width: 100%; 
             padding: 12px; 
@@ -84,7 +107,6 @@
             font-size: 16px; 
             font-weight: bold; 
             cursor: pointer; 
-            margin-top: 15px;
             transition: background 0.2s; 
         }
         .btn-compile:hover { 
@@ -117,6 +139,11 @@
     <div class="form-group">
         <label>OUTPUT GAMMA</label>
         <select id="out_gamma"></select>
+    </div>
+
+    <div class="checkbox-container">
+        <input type="checkbox" id="use_ssts" checked>
+        <label for="use_ssts"><strong>Apply ACES Tone Mapping</strong><br><span style="color:#888; font-size: 11px;">(Disable for Scene-to-Scene conversions)</span></label>
     </div>
 
     <button class="btn-compile" onclick="buildDCTL()">Compile DCTL</button>
@@ -346,17 +373,21 @@
         let inGamma = document.getElementById('in_gamma').value;
         let outGamut = document.getElementById('out_gamut').value;
         let outGamma = document.getElementById('out_gamma').value;
+        let useSSTS = document.getElementById('use_ssts').checked;
 
         let mInToXyz = GAMUT_IN[inGamut];
         let mXyzToOut = invertMatrix(GAMUT_IN[outGamut]);
         let mXyzToAp1 = invertMatrix(AP1_TO_XYZ);
 
-        // Precalculate full path using ACES AP1
-        let m1 = multMatrix(mXyzToAp1, mInToXyz);
-        let m2 = multMatrix(mXyzToOut, AP1_TO_XYZ);
-        
-        let matrixCode = `
-    // GPU Step 1: Input to AP1
+        let matrixCode = "";
+
+        if (useSSTS) {
+            // Path 1: Display Transform (With Tone Mapping via AP1)
+            let m1 = multMatrix(mXyzToAp1, mInToXyz);
+            let m2 = multMatrix(mXyzToOut, AP1_TO_XYZ);
+            
+            matrixCode = `
+    // GPU Step 1: Input to AP1 Working Space
     float ap1_r = lin_r * ${m1[0].toFixed(6)}f + lin_g * ${m1[1].toFixed(6)}f + lin_b * ${m1[2].toFixed(6)}f;
     float ap1_g = lin_r * ${m1[3].toFixed(6)}f + lin_g * ${m1[4].toFixed(6)}f + lin_b * ${m1[5].toFixed(6)}f;
     float ap1_b = lin_r * ${m1[6].toFixed(6)}f + lin_g * ${m1[7].toFixed(6)}f + lin_b * ${m1[8].toFixed(6)}f;
@@ -368,15 +399,26 @@ ${EXACT_ACES_MATH_BLOCK}
     float out_gamut_g = ap1_r * ${m2[3].toFixed(6)}f + ap1_g * ${m2[4].toFixed(6)}f + ap1_b * ${m2[5].toFixed(6)}f;
     float out_gamut_b = ap1_r * ${m2[6].toFixed(6)}f + ap1_g * ${m2[7].toFixed(6)}f + ap1_b * ${m2[8].toFixed(6)}f;
 `;
+        } else {
+            // Path 2: Scene-to-Scene (Direct Matrix CST, NO Tone Mapping)
+            let mDirect = multMatrix(mXyzToOut, mInToXyz);
+            
+            matrixCode = `
+    // GPU Step 1: Pure Matrix CST (Scene-to-Scene Path)
+    float out_gamut_r = lin_r * ${mDirect[0].toFixed(6)}f + lin_g * ${mDirect[1].toFixed(6)}f + lin_b * ${mDirect[2].toFixed(6)}f;
+    float out_gamut_g = lin_r * ${mDirect[3].toFixed(6)}f + lin_g * ${mDirect[4].toFixed(6)}f + lin_b * ${mDirect[5].toFixed(6)}f;
+    float out_gamut_b = lin_r * ${mDirect[6].toFixed(6)}f + lin_g * ${mDirect[7].toFixed(6)}f + lin_b * ${mDirect[8].toFixed(6)}f;
+`;
+        }
 
         let dec = inGamma === "Linear" ? "    float lin_r = p_R; float lin_g = p_G; float lin_b = p_B;" : "    float lin_r = in_gamma_to_lin(p_R);\n    float lin_g = in_gamma_to_lin(p_G);\n    float lin_b = in_gamma_to_lin(p_B);";
         let enc = outGamma === "Linear" ? "    float out_r = out_gamut_r; float out_g = out_gamut_g; float out_b = out_gamut_b;" : "    float out_r = lin_to_out_gamma(out_gamut_r);\n    float out_g = lin_to_out_gamma(out_gamut_g);\n    float out_b = lin_to_out_gamma(out_gamut_b);";
 
+        let sliderCode = useSSTS ? "\nDEFINE_UI_PARAMS(target_nits, Target Display Nits, DCTLUI_SLIDER_FLOAT, 1000.0, 100.0, 4000.0, 10.0)\n" : "";
+
         let dctlStr = `// Input: ${inGamut} / ${inGamma}
 // Output: ${outGamut} / ${outGamma}
-
-DEFINE_UI_PARAMS(target_nits, Target Display Nits, DCTLUI_SLIDER_FLOAT, 1000.0, 100.0, 4000.0, 10.0)
-
+${sliderCode}
 ${GAMMA_IN[inGamma] || "// Default"}
 ${GAMMA_OUT[outGamma] || "// Default"}
 
@@ -389,7 +431,6 @@ ${enc}
 }
 `;
         
-        // Generate Dynamic Safe Filename
         let safeFileName = `${inGamut}_${inGamma}_to_${outGamut}_${outGamma}.dctl`.replace(/ /g, "_");
 
         let blob = new Blob([dctlStr], { type: 'text/plain' });
