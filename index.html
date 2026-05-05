@@ -243,7 +243,7 @@
     // 2. THE TRUE ACES 2.0 SSTS ENGINE BLOCK (Explicit Math)
     // =========================================================================
     const EXACT_ACES_MATH_BLOCK = `
-    // --- EXACT ACES SINGLE STAGE TONE SCALE (SSTS) MATH ---
+    // --- ACES SINGLE STAGE TONE SCALE (SSTS) MATH ---
     const float MIN_LUM = 0.0001f;
     const float MAX_LUM = target_nits;
     const float FL_LUM  = 0.0f; 
@@ -372,10 +372,8 @@ ${EXACT_ACES_MATH_BLOCK}
         let dec = inGamma === "Linear" ? "    float lin_r = p_R; float lin_g = p_G; float lin_b = p_B;" : "    float lin_r = in_gamma_to_lin(p_R);\n    float lin_g = in_gamma_to_lin(p_G);\n    float lin_b = in_gamma_to_lin(p_B);";
         let enc = outGamma === "Linear" ? "    float out_r = out_gamut_r; float out_g = out_gamut_g; float out_b = out_gamut_b;" : "    float out_r = lin_to_out_gamma(out_gamut_r);\n    float out_g = lin_to_out_gamma(out_gamut_g);\n    float out_b = lin_to_out_gamma(out_gamut_b);";
 
-        let dctlStr = `// DaVinci Resolve Exact ACES DCTL Output
-// Input: ${inGamut} / ${inGamma}
+        let dctlStr = `// Input: ${inGamut} / ${inGamma}
 // Output: ${outGamut} / ${outGamma}
-// Engine: True ACES AP1 SSTS Mathematics
 
 DEFINE_UI_PARAMS(target_nits, Target Display Nits, DCTLUI_SLIDER_FLOAT, 1000.0, 100.0, 4000.0, 10.0)
 
