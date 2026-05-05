@@ -8,7 +8,7 @@
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background-color: #161618; /* DaVinci Resolve style dark background */
+            background-color: #161618; 
             color: #e0e0e0; 
             display: flex; 
             justify-content: center; 
@@ -98,24 +98,24 @@
     <h2>DCTL Compiler</h2>
     
     <div class="form-group">
-        <label>Input Gamut</label>
+        <label>INPUT COLORSPACE</label>
         <select id="in_gamut"></select>
     </div>
     
     <div class="form-group">
-        <label>Input Gamma</label>
+        <label>INPUT GAMMA</label>
         <select id="in_gamma"></select>
     </div>
 
     <button class="btn-swap" onclick="swap()">↑↓ Swap Input & Output</button>
     
     <div class="form-group">
-        <label>Output Gamut</label>
+        <label>OUTPUT COLORSPACE</label>
         <select id="out_gamut"></select>
     </div>
     
     <div class="form-group">
-        <label>Output Gamma</label>
+        <label>OUTPUT GAMMA</label>
         <select id="out_gamma"></select>
     </div>
 
@@ -391,10 +391,13 @@ ${enc}
 }
 `;
         
+        // Generate Dynamic Safe Filename
+        let safeFileName = `${inGamut}_${inGamma}_to_${outGamut}_${outGamma}.dctl`.replace(/ /g, "_");
+
         let blob = new Blob([dctlStr], { type: 'text/plain' });
         let a = document.createElement('a');
         a.href = window.URL.createObjectURL(blob);
-        a.download = `Exact_ACES_Transform.dctl`;
+        a.download = safeFileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
