@@ -263,8 +263,14 @@
         "Linear": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
     };
 
-    // Constant mathematical anchor for true ACES calculations
     const AP1_TO_XYZ = [0.662454, 0.134004, 0.156188, 0.272229, 0.674082, 0.053689, -0.005575, 0.004061, 1.010339];
+
+    // ACES D65 to D60 Chromatic Adaptation Matrix (Bradford CAT02 approach)
+    const CAT_D65_TO_D60 = [
+        1.015243,  0.007521, -0.016335,
+        0.010214,  0.999120, -0.009240,
+       -0.002621, -0.001684,  0.758410
+    ];
 
     // =========================================================================
     // 2. THE TRUE ACES 2.0 SSTS ENGINE BLOCK (Explicit Math)
@@ -327,7 +333,6 @@
         return c;
     }
 
-    // Function to swap Inputs and Outputs
     function swap() {
         let inGamut = document.getElementById('in_gamut');
         let inGamma = document.getElementById('in_gamma');
@@ -343,7 +348,6 @@
         outGamma.value = tempGamma;
     }
 
-    // Populate Dropdowns on Load
     window.onload = function() {
         const populate = (id, dict) => {
             let select = document.getElementById(id);
@@ -377,12 +381,12 @@
 
         let mInToXyz = GAMUT_IN[inGamut];
         let mXyzToOut = invertMatrix(GAMUT_IN[outGamut]);
-        let mXyzToAp1 = invertMatrix(AP1_TO_XYZ);
 
         let matrixCode = "";
 
         if (useSSTS) {
-            // Path 1: Display Transform (With Tone Mapping via AP1)
+            // Display Transform Path
+            let mXyzToAp1 = invertMatrix(AP1_TO_XYZ);
             let m1 = multMatrix(mXyzToAp1, mInToXyz);
             let m2 = multMatrix(mXyzToOut, AP1_TO_XYZ);
             
@@ -400,14 +404,27 @@ ${EXACT_ACES_MATH_BLOCK}
     float out_gamut_b = ap1_r * ${m2[6].toFixed(6)}f + ap1_g * ${m2[7].toFixed(6)}f + ap1_b * ${m2[8].toFixed(6)}f;
 `;
         } else {
-            // Path 2: Scene-to-Scene (Direct Matrix CST, NO Tone Mapping)
-            let mDirect = multMatrix(mXyzToOut, mInToXyz);
+            // Scene-to-Scene Path with ACES AP0 Detour
+            let m_ap0_to_xyz = GAMUT_IN["ACES AP0"]; // AP0 is D60
+            let xyz_to_ap0 = invertMatrix(m_ap0_to_xyz);
+            let cat_d60_to_d65 = invertMatrix(CAT_D65_TO_D60);
+            
+            // Input -> XYZ (D65) -> CAT -> XYZ (D60) -> AP0
+            let m_in_to_ap0 = multMatrix(xyz_to_ap0, multMatrix(CAT_D65_TO_D60, mInToXyz));
+            
+            // AP0 -> XYZ (D60) -> CAT^-1 -> XYZ (D65) -> Output
+            let m_ap0_to_out = multMatrix(mXyzToOut, multMatrix(cat_d60_to_d65, m_ap0_to_xyz));
             
             matrixCode = `
-    // GPU Step 1: Pure Matrix CST (Scene-to-Scene Path)
-    float out_gamut_r = lin_r * ${mDirect[0].toFixed(6)}f + lin_g * ${mDirect[1].toFixed(6)}f + lin_b * ${mDirect[2].toFixed(6)}f;
-    float out_gamut_g = lin_r * ${mDirect[3].toFixed(6)}f + lin_g * ${mDirect[4].toFixed(6)}f + lin_b * ${mDirect[5].toFixed(6)}f;
-    float out_gamut_b = lin_r * ${mDirect[6].toFixed(6)}f + lin_g * ${mDirect[7].toFixed(6)}f + lin_b * ${mDirect[8].toFixed(6)}f;
+    // GPU Step 1: Input to ACES AP0 (via CAT02 D65->D60)
+    float ap0_r = lin_r * ${m_in_to_ap0[0].toFixed(6)}f + lin_g * ${m_in_to_ap0[1].toFixed(6)}f + lin_b * ${m_in_to_ap0[2].toFixed(6)}f;
+    float ap0_g = lin_r * ${m_in_to_ap0[3].toFixed(6)}f + lin_g * ${m_in_to_ap0[4].toFixed(6)}f + lin_b * ${m_in_to_ap0[5].toFixed(6)}f;
+    float ap0_b = lin_r * ${m_in_to_ap0[6].toFixed(6)}f + lin_g * ${m_in_to_ap0[7].toFixed(6)}f + lin_b * ${m_in_to_ap0[8].toFixed(6)}f;
+
+    // GPU Step 2: ACES AP0 to Output Gamut (via CAT02 D60->D65)
+    float out_gamut_r = ap0_r * ${m_ap0_to_out[0].toFixed(6)}f + ap0_g * ${m_ap0_to_out[1].toFixed(6)}f + ap0_b * ${m_ap0_to_out[2].toFixed(6)}f;
+    float out_gamut_g = ap0_r * ${m_ap0_to_out[3].toFixed(6)}f + ap0_g * ${m_ap0_to_out[4].toFixed(6)}f + ap0_b * ${m_ap0_to_out[5].toFixed(6)}f;
+    float out_gamut_b = ap0_r * ${m_ap0_to_out[6].toFixed(6)}f + ap0_g * ${m_ap0_to_out[7].toFixed(6)}f + ap0_b * ${m_ap0_to_out[8].toFixed(6)}f;
 `;
         }
 
