@@ -41,7 +41,15 @@
                     </div>
                 </div>
 
-                <div class="border-t border-slate-800/60 my-2"></div>
+                <div class="relative flex items-center py-2">
+                    <div class="flex-grow border-t border-slate-800/60"></div>
+                    <button id="swapBtn" type="button" class="mx-4 flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-emerald-400 active:scale-90 transition-all shadow-md group" title="Swap Input & Output">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 transform group-hover:rotate-180 transition-transform duration-300">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+                        </svg>
+                    </button>
+                    <div class="flex-grow border-t border-slate-800/60"></div>
+                </div>
 
                 <div class="space-y-4">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">Target Output (ODT)</h3>
@@ -52,6 +60,24 @@
                     <div>
                         <label class="block text-xs text-slate-400 mb-1.5 font-medium">Output Gamma (Transfer Function)</label>
                         <select id="dstGamma" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"></select>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-800/60 my-2"></div>
+
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-purple-400 font-semibold flex items-center gap-1.5">
+                        Tone Mapping (DRT)
+                    </h3>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1.5 font-medium">Compression Curve</label>
+                        <select id="toneMapping" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500 transition-colors">
+                            <option value="ACES_2_0_SSTS" selected>ACES 2.0 SSTS (SDR 100 Nits)</option>
+                            <option value="NONE">None (Pure Math / Clip)</option>
+                        </select>
+                        <p id="toneMapDesc" class="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                            Maps high-dynamic-range scenes to SDR display limits using the ACES 2.0 Single Stage Tone Scale spline.
+                        </p>
                     </div>
                 </div>
 
@@ -206,7 +232,13 @@
             return mat_mul_3x3(M_dst_inv, mat_mul_3x3(M_CAT, M_src));
         }
 
-        // 3. CURVES DICTIONARY
+        // Helper to format terms for clean matrix addition/subtraction without adjacent "+ -" operators
+        function format_term(val, variable, is_first) {
+            const sign = val >= 0 ? (is_first ? "" : "+ ") : "- ";
+            return `${sign}${Math.abs(val).toFixed(9)}f * ${variable}`;
+        }
+
+        // 3. CURVES DICTIONARY (Updated with correct _fmaxf compiler syntax)
         const GAMMA_FUNCTIONS = {
             "ACEScc": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) {
@@ -298,7 +330,7 @@
     return (_powf(10.0f, (val - 0.615f) / 0.385f) - 0.0375f) / 0.9625f;
 }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) {
-    return 0.385f * _log10f(0.9625f * _maxf(val, 0.0f) + 0.0375f) + 0.615f;
+    return 0.385f * _log10f(0.9625f * _fmaxf(val, 0.0f) + 0.0375f) + 0.615f;
 }`
             },
             "Blackmagic Film Gen 5": {
@@ -307,7 +339,7 @@
     else return 0.0f;
 }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) {
-    return 0.285433f * _log10f(0.9925f * _maxf(val, 0.0f) + 0.0075f) + 0.512615f;
+    return 0.285433f * _log10f(0.9925f * _fmaxf(val, 0.0f) + 0.0075f) + 0.512615f;
 }`
             },
             "Canon Log": {
@@ -447,24 +479,24 @@
 }`
             },
             "Rec.709": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_maxf(val, 0.0f), 2.4f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_maxf(val, 0.0f), 1.0f / 2.4f); }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.4f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.4f); }`
             },
             "Rec.709-A": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_maxf(val, 0.0f), 1.961f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_maxf(val, 0.0f), 1.0f / 1.961f); }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 1.961f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 1.961f); }`
             },
             "Gamma 2.2": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_maxf(val, 0.0f), 2.2f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_maxf(val, 0.0f), 1.0f / 2.2f); }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.2f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.2f); }`
             },
             "Gamma 2.4": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_maxf(val, 0.0f), 2.4f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_maxf(val, 0.0f), 1.0f / 2.4f); }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.4f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.4f); }`
             },
             "Gamma 2.6": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_maxf(val, 0.0f), 2.6f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_maxf(val, 0.0f), 1.0f / 2.6f); }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.6f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.6f); }`
             },
             "sRGB": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) {
@@ -508,8 +540,8 @@
                 if (direction === "to_linear") {
                     return `__DEVICE__ float log_to_linear(float val) {
     float m1 = 0.1593017578125f; float m2 = 78.84375f; float c1 = 0.8359375f; float c2 = 18.8515625f; float c3 = 18.6875f;
-    float val_pow = _powf(_maxf(val, 0.0f), 1.0f / m2);
-    float num = _maxf(val_pow - c1, 0.0f);
+    float val_pow = _powf(_fmaxf(val, 0.0f), 1.0f / m2);
+    float num = _fmaxf(val_pow - c1, 0.0f);
     float den = c2 - c3 * val_pow;
     float abs_lin = _powf(num / den, 1.0f / m1);
     return abs_lin * ${(10000.0 / peak_nits).toFixed(6)}f;
@@ -518,7 +550,7 @@
                     return `__DEVICE__ float linear_to_log(float val) {
     float m1 = 0.1593017578125f; float m2 = 78.84375f; float c1 = 0.8359375f; float c2 = 18.8515625f; float c3 = 18.6875f;
     float abs_lin = val * ${(peak_nits / 10000.0).toFixed(6)}f;
-    float y = _powf(_maxf(abs_lin, 0.0f), m1);
+    float y = _powf(_fmaxf(abs_lin, 0.0f), m1);
     return _powf((c1 + c2 * y) / (1.0f + c3 * y), m2);
 }`;
                 }
@@ -531,10 +563,11 @@
         const srcGammaEl = document.getElementById("srcGamma");
         const dstGamutEl = document.getElementById("dstGamut");
         const dstGammaEl = document.getElementById("dstGamma");
+        const toneMappingEl = document.getElementById("toneMapping");
         const codeBlockEl = document.getElementById("codeBlock");
         const filenameEl = document.getElementById("previewFilename");
+        const swapBtnEl = document.getElementById("swapBtn");
 
-        // Populate dropdown options
         const gamutOptions = Object.keys(PRIMARIES).sort();
         const gammaOptions = Object.keys(GAMMA_FUNCTIONS).concat(Object.keys(PQ_VARIANTS)).sort();
 
@@ -548,11 +581,11 @@
             dstGammaEl.add(new Option(opt, opt));
         });
 
-        // Set default values (e.g., Sony S-Gamut3.Cine/S-Log3 to DWG/DI)
+        // Set default values matching your requirements
         srcGamutEl.value = "Sony S-Gamut3.Cine";
         srcGammaEl.value = "Sony S-Log3";
-        dstGamutEl.value = "DaVinci Wide Gamut";
-        dstGammaEl.value = "DaVinci Intermediate";
+        dstGamutEl.value = "Rec.709";
+        dstGammaEl.value = "Gamma 2.4";
 
         // 5. GENERATOR LOGIC
         function generate_dctl() {
@@ -560,10 +593,12 @@
             const srcGamma = srcGammaEl.value;
             const dstGamut = dstGamutEl.value;
             const dstGamma = dstGammaEl.value;
+            const useToneMapping = toneMappingEl.value === "ACES_2_0_SSTS";
 
             const matrix = get_conversion_matrix(srcGamut, dstGamut);
 
-            const dctlCode = `// =====================================================================
+            // Construct the DCTL file
+            let dctlCode = `// =====================================================================
 // Custom DCTL: Mathematical Color Space Transform (CST equivalent)
 // Source: ${srcGamut} / ${srcGamma}
 // Target: ${dstGamut} / ${dstGamma}
@@ -572,8 +607,33 @@
 
 // Step 1: Input Curve Transformation to Linear
 ${get_gamma_code(srcGamma, 'to_linear')}
+`;
 
-// Step 2: Output Curve Transformation from Linear
+            if (useToneMapping) {
+                dctlCode += `
+// Step 2: Highlight Tone Mapper (ACES 2.0 Single Stage Tone Scale - SDR)
+// Emulates the ACES Output Transform's midtone contrast (1.15) 
+// Preserves anchor points (0.18 scene-referred -> 4.8 nits SDR)
+__DEVICE__ float3 apply_aces_ssts(float3 rgb) {
+    const float exponent = 1.15f;
+    const float mid_gray_scale = 0.013663f; // _powf(0.18f, 1.15f) * ((100.0f / 4.8f) - 1.0f)
+    
+    float3 out;
+    out.x = _powf(_fmaxf(rgb.x, 0.0f), exponent);
+    out.y = _powf(_fmaxf(rgb.y, 0.0f), exponent);
+    out.z = _powf(_fmaxf(rgb.z, 0.0f), exponent);
+    
+    out.x = out.x / (out.x + mid_gray_scale);
+    out.y = out.y / (out.y + mid_gray_scale);
+    out.z = out.z / (out.z + mid_gray_scale);
+    
+    return out;
+}
+`;
+            }
+
+            dctlCode += `
+// Step 3: Output Curve Transformation from Linear
 ${get_gamma_code(dstGamma, 'from_linear')}
 
 // Main Transform Engine
@@ -587,13 +647,23 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
     rgb.z = log_to_linear(rgb.z);
 
     // 2. Perform Primary Gamut Transformation Matrix (Bradford Adapted)
-    float r = ${matrix[0][0].toFixed(9)}f * rgb.x + ${matrix[0][1].toFixed(9)}f * rgb.y + ${matrix[0][2].toFixed(9)}f * rgb.z;
-    float g = ${matrix[1][0].toFixed(9)}f * rgb.x + ${matrix[1][1].toFixed(9)}f * rgb.y + ${matrix[1][2].toFixed(9)}f * rgb.z;
-    float b = ${matrix[2][0].toFixed(9)}f * rgb.x + ${matrix[2][1].toFixed(9)}f * rgb.y + ${matrix[2][2].toFixed(9)}f * rgb.z;
+    // No double-operator collisions (+ -) for clean GPU compilation
+    float r = ${format_term(matrix[0][0], "rgb.x", true)} ${format_term(matrix[0][1], "rgb.y", false)} ${format_term(matrix[0][2], "rgb.z", false)};
+    float g = ${format_term(matrix[1][0], "rgb.x", true)} ${format_term(matrix[1][1], "rgb.y", false)} ${format_term(matrix[1][2], "rgb.z", false)};
+    float b = ${format_term(matrix[2][0], "rgb.x", true)} ${format_term(matrix[2][1], "rgb.y", false)} ${format_term(matrix[2][2], "rgb.z", false)};
     
     rgb = make_float3(r, g, b);
+`;
 
-    // 3. Apply Output Curve Conversion
+            if (useToneMapping) {
+                dctlCode += `
+    // 3. Apply ACES 2.0 SSTS Tone Mapping (Graceful highlight compression)
+    rgb = apply_aces_ssts(rgb);
+`;
+            }
+
+            dctlCode += `
+    // 4. Apply Output Curve Conversion
     rgb.x = linear_to_log(rgb.x);
     rgb.y = linear_to_log(rgb.y);
     rgb.z = linear_to_log(rgb.z);
@@ -604,18 +674,35 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
             
             // Clean filename
             let cleanFn = `CST_${srcGamut}_${srcGamma}_to_${dstGamut}_${dstGamma}`;
+            if (useToneMapping) cleanFn += "_ACES_SSTS";
             cleanFn = cleanFn.replace(/[\s\(\)\.\/]/g, "_").replace(/__+/g, "_").replace(/_$/, "") + ".dctl";
 
             codeBlockEl.textContent = dctlCode;
             filenameEl.textContent = cleanFn;
         }
 
-        // Add event listeners to trigger recalculation on select change
-        [srcGamutEl, srcGammaEl, dstGamutEl, dstGammaEl].forEach(el => {
+        // Add event listeners to trigger recalculation
+        [srcGamutEl, srcGammaEl, dstGamutEl, dstGammaEl, toneMappingEl].forEach(el => {
             el.addEventListener("change", generate_dctl);
         });
 
-        // 6. COPY TO CLIPBOARD
+        // 6. SWAP BUTTON INTERACTION
+        swapBtnEl.addEventListener("click", () => {
+            // Store source state temporarily
+            const tempGamut = srcGamutEl.value;
+            const tempGamma = srcGammaEl.value;
+
+            // Swap values
+            srcGamutEl.value = dstGamutEl.value;
+            srcGammaEl.value = dstGammaEl.value;
+            dstGamutEl.value = tempGamut;
+            dstGammaEl.value = tempGamma;
+
+            // Trigger real-time recalculation
+            generate_dctl();
+        });
+
+        // 7. COPY TO CLIPBOARD
         document.getElementById("copyBtn").addEventListener("click", () => {
             navigator.clipboard.writeText(codeBlockEl.textContent).then(() => {
                 const origText = copyBtn.textContent;
@@ -628,7 +715,7 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
             });
         });
 
-        // 7. DOWNLOAD AS FILE
+        // 8. DOWNLOAD AS FILE
         document.getElementById("downloadBtn").addEventListener("click", () => {
             const code = codeBlockEl.textContent;
             const filename = filenameEl.textContent;
