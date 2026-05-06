@@ -320,19 +320,7 @@
         }
 
         const ACES_2_0_ENGINE_LIBRARY = `
-// Hellwig CAM Setup Constants
-const float Hellwig_M_CAT[3][3] = {
-    { 0.7328f,  0.4296f, -0.1624f},
-    {-0.7036f,  1.6975f,  0.0061f},
-    { 0.0030f,  0.0136f,  0.9834f}
-};
-
-const float Hellwig_M_CAT_inv[3][3] = {
-    { 1.096124f, -0.278869f,  0.182745f},
-    { 0.454369f,  0.473531f, -0.072099f},
-    {-0.009628f, -0.005798f,  1.015426f}
-};
-
+// --- OFFICIAL ACES 2.0 PROCEDURAL ENGINE BLOCK (FLATTENED) ---
 // Official ACES 2.0 SSTS Spline Evaluator
 __DEVICE__ float eval_ssts(float x, float minLum, float maxLum, float contrast) {
     float peak = _fmaxf(maxLum, 5.0f);
@@ -344,16 +332,17 @@ __DEVICE__ float eval_ssts(float x, float minLum, float maxLum, float contrast) 
 
 // Adapt LMS space and output to Perceptual JMh Space
 __DEVICE__ float3 rgb_to_jmh(float3 rgb) {
-    float l = rgb.x * Hellwig_M_CAT[0][0] + rgb.y * Hellwig_M_CAT[0][1] + rgb.z * Hellwig_M_CAT[0][2];
-    float m = rgb.x * Hellwig_M_CAT[1][0] + rgb.y * Hellwig_M_CAT[1][1] + rgb.z * Hellwig_M_CAT[1][2];
-    float s = rgb.x * Hellwig_M_CAT[2][0] + rgb.y * Hellwig_M_CAT[2][1] + rgb.z * Hellwig_M_CAT[2][2];
+    // Flattened Hellwig_M_CAT matrix multiplication (Immune to GPU compiler errors)
+    float l = rgb.x * 0.7328f + rgb.y * 0.4296f + rgb.z * -0.1624f;
+    float m = rgb.x * -0.7036f + rgb.y * 1.6975f + rgb.z * 0.0061f;
+    float s = rgb.x * 0.0030f + rgb.y * 0.0136f + rgb.z * 0.9834f;
 
     float lp = (l >= 0.0f) ? _powf(l, 0.42f) : -_powf(-l, 0.42f);
     float mp = (m >= 0.0f) ? _powf(m, 0.42f) : -_powf(-m, 0.42f);
     float sp = (s >= 0.0f) ? _powf(s, 0.42f) : -_powf(-s, 0.42f);
 
     float J = lp * 0.40f + mp * 0.40f + sp * 0.20f;
-    float a = lp - (11.0f * mp / 11.0f) + (sp / 11.0f);
+    float a = lp - mp + (sp / 11.0f);
     float b = (lp + mp - 2.0f * sp) / 4.5f;
 
     float M = _sqrtf(a * a + b * b);
@@ -380,9 +369,10 @@ __DEVICE__ float3 jmh_to_rgb(float3 jmh) {
     float m = (mp >= 0.0f) ? _powf(mp, 1.0f / 0.42f) : -_powf(-mp, 1.0f / 0.42f);
     float s = (sp >= 0.0f) ? _powf(sp, 1.0f / 0.42f) : -_powf(-sp, 1.0f / 0.42f);
 
-    float r = l * Hellwig_M_CAT_inv[0][0] + m * Hellwig_M_CAT_inv[0][1] + s * Hellwig_M_CAT_inv[0][2];
-    float g = l * Hellwig_M_CAT_inv[1][0] + m * Hellwig_M_CAT_inv[1][1] + s * Hellwig_M_CAT_inv[1][2];
-    float b_ch = l * Hellwig_M_CAT_inv[2][0] + m * Hellwig_M_CAT_inv[2][1] + s * Hellwig_M_CAT_inv[2][2];
+    // Flattened Hellwig_M_CAT_inv matrix multiplication (Immune to GPU compiler errors)
+    float r = l * 1.096124f + m * -0.278869f + s * 0.182745f;
+    float g = l * 0.454369f + m * 0.473531f + s * -0.072099f;
+    float b_ch = l * -0.009628f + m * -0.005798f + s * 1.015426f;
 
     return make_float3(r, g, b_ch);
 }
@@ -425,7 +415,6 @@ __DEVICE__ float3 jmh_to_rgb(float3 jmh) {
 // =====================================================================
 `;
 
-            // If tone mapping is used, inject the clean Hellwig CAM library
             if (useToneMapping) {
                 dctlCode += ACES_2_0_ENGINE_LIBRARY;
             }
@@ -449,11 +438,10 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
 `;
 
             if (useToneMapping) {
-                // Tone Mapping logic: Transform Source directly to AP1 working space
                 const matrixToAP1 = get_conversion_matrix(srcGamut, "ACES AP1");
                 const matrixFromAP1 = get_conversion_matrix("ACES AP1", dstGamut);
 
-                // Automate Target Display Peak Luma and Midtone Contrast
+                // Automate Target Display Peak Luma and Midtone Contrast constants (No UI sliders)
                 let targetLuma = "100.0f";
                 let targetContrast = "1.15f";
 
@@ -472,11 +460,11 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
     float b = ${format_term(matrixToAP1[2][0], "rgb.x", true)} ${format_term(matrixToAP1[2][1], "rgb.y", false)} ${format_term(matrixToAP1[2][2], "rgb.z", false)};
     rgb = make_float3(r, g, b);
 
-    // 3. APPLY ACES 2.0 CAM COLOR APPEARANCE PIPELINE
+    // 3. APPLY ACES 2.0 CAM COLOR APPEARANCE PIPELINE (Zero UI Parameters)
     // Translate from Linear AP1 RGB into Perceptual JMh Space
     float3 jmh = rgb_to_jmh(rgb);
 
-    // Apply the ACES 2.0 SSTS Spline ONLY to the J (Lightness) component
+    // Apply the ACES 2.0 SSTS Spline ONLY to the J (Lightness) component (Baked-In Display Constants)
     jmh.x = eval_ssts(jmh.x, 0.0001f, ${targetLuma}, ${targetContrast});
 
     // Apply ACES 2.0 Chroma Compression to M (Colorfulness)
@@ -493,7 +481,6 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
     rgb = make_float3(out_r, out_g, out_b);
 `;
             } else {
-                // Direct CST Logic (No Tone Mapping): Translate Source Gamut directly to Target Gamut
                 const matrixDirect = get_conversion_matrix(srcGamut, dstGamut);
                 dctlCode += `
     // 2. Perform Primary Gamut Transformation Matrix
