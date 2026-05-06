@@ -188,11 +188,11 @@
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.007812f) ? 10.5402f * val + 0.0729f : (_log2f(val) * 175.2f + 434.0f) / 1023.0f; }`
             },
             "ARRI LogC": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.385537f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.149658f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.555556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
             },
             "ARRI LogC3": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.385537f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.149658f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.555556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
             },
             "ARRI LogC4": {
@@ -325,6 +325,9 @@
         const dstGammaEl = document.getElementById("dstGamma");
         const codeBlockEl = document.getElementById("codeBlock");
         const filenameEl = document.getElementById("previewFilename");
+        const swapBtnEl = document.getElementById("swapBtn");
+        const copyBtnEl = document.getElementById("copyBtn");
+        const downloadBtnEl = document.getElementById("downloadBtn");
 
         const gamutOptions = Object.keys(PRIMARIES).sort();
         const gammaOptions = Object.keys(GAMMA_FUNCTIONS).concat(Object.keys(PQ_VARIANTS)).sort();
@@ -441,7 +444,7 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
         });
 
         // Swap functionality
-        document.getElementById("swapBtn").addEventListener("click", () => {
+        swapBtnEl.addEventListener("click", () => {
             const tempGamut = srcGamutEl.value; const tempGamma = srcGammaEl.value;
             srcGamutEl.value = dstGamutEl.value; srcGammaEl.value = dstGammaEl.value;
             dstGamutEl.value = tempGamut; dstGammaEl.value = tempGamma;
@@ -449,20 +452,20 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
         });
 
         // Copy to clipboard
-        document.getElementById("copyBtn").addEventListener("click", () => {
+        copyBtnEl.addEventListener("click", () => {
             navigator.clipboard.writeText(codeBlockEl.textContent).then(() => {
-                const origText = copyBtn.textContent;
-                copyBtn.textContent = "Copied! ✓";
-                copyBtn.classList.add("border-emerald-500", "text-emerald-400");
+                const origText = copyBtnEl.textContent;
+                copyBtnEl.textContent = "Copied! ✓";
+                copyBtnEl.classList.add("border-emerald-500", "text-emerald-400");
                 setTimeout(() => {
-                    copyBtn.textContent = origText;
-                    copyBtn.classList.remove("border-emerald-500", "text-emerald-400");
+                    copyBtnEl.textContent = origText;
+                    copyBtnEl.classList.remove("border-emerald-500", "text-emerald-400");
                 }, 1500);
             });
         });
 
         // File download
-        document.getElementById("downloadBtn").addEventListener("click", () => {
+        downloadBtnEl.addEventListener("click", () => {
             const code = codeBlockEl.textContent;
             const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
             const url = URL.createObjectURL(blob);
