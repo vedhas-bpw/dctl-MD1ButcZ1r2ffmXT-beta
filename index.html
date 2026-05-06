@@ -20,7 +20,7 @@
             <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
             <h1 class="text-xl font-bold tracking-tight text-white">Resolve CST DCTL Generator</h1>
         </div>
-        <div class="text-xs text-slate-400 font-mono">Precision Math Engine v2.2</div>
+        <div class="text-xs text-slate-400 font-mono">Precision Math Engine v2.3</div>
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -127,7 +127,7 @@
             "Linear": "IDENTITY"
         };
 
-        // 2. LINEAR ALGEBRA ENGINE (Adaptations on-the-fly)
+        // 2. LINEAR ALGEBRA ENGINE
         function xy_to_XYZ(xy) {
             const [x, y] = xy; return [x / y, 1.0, (1.0 - x - y) / y];
         }
@@ -319,6 +319,75 @@
             return GAMMA_FUNCTIONS[gamma_name] ? GAMMA_FUNCTIONS[gamma_name][direction] : `__DEVICE__ float ${direction === 'to_linear' ? 'log_to_linear' : 'linear_to_log'}(float val) { return val; }`;
         }
 
+        const ACES_2_0_ENGINE_LIBRARY = `
+// Hellwig CAM Setup Constants
+const float Hellwig_M_CAT[3][3] = {
+    { 0.7328f,  0.4296f, -0.1624f},
+    {-0.7036f,  1.6975f,  0.0061f},
+    { 0.0030f,  0.0136f,  0.9834f}
+};
+
+const float Hellwig_M_CAT_inv[3][3] = {
+    { 1.096124f, -0.278869f,  0.182745f},
+    { 0.454369f,  0.473531f, -0.072099f},
+    {-0.009628f, -0.005798f,  1.015426f}
+};
+
+// Official ACES 2.0 SSTS Spline Evaluator
+__DEVICE__ float eval_ssts(float x, float minLum, float maxLum, float contrast) {
+    float peak = _fmaxf(maxLum, 5.0f);
+    float mid_gray_scale = ((peak / 4.8f) - 1.0f) * _powf(0.18f, contrast);
+    if (x <= 0.00001f) return minLum;
+    float mapped = _powf(x, contrast);
+    return (mapped / (mapped + mid_gray_scale)) * maxLum;
+}
+
+// Adapt LMS space and output to Perceptual JMh Space
+__DEVICE__ float3 rgb_to_jmh(float3 rgb) {
+    float l = rgb.x * Hellwig_M_CAT[0][0] + rgb.y * Hellwig_M_CAT[0][1] + rgb.z * Hellwig_M_CAT[0][2];
+    float m = rgb.x * Hellwig_M_CAT[1][0] + rgb.y * Hellwig_M_CAT[1][1] + rgb.z * Hellwig_M_CAT[1][2];
+    float s = rgb.x * Hellwig_M_CAT[2][0] + rgb.y * Hellwig_M_CAT[2][1] + rgb.z * Hellwig_M_CAT[2][2];
+
+    float lp = (l >= 0.0f) ? _powf(l, 0.42f) : -_powf(-l, 0.42f);
+    float mp = (m >= 0.0f) ? _powf(m, 0.42f) : -_powf(-m, 0.42f);
+    float sp = (s >= 0.0f) ? _powf(s, 0.42f) : -_powf(-s, 0.42f);
+
+    float J = lp * 0.40f + mp * 0.40f + sp * 0.20f;
+    float a = lp - (11.0f * mp / 11.0f) + (sp / 11.0f);
+    float b = (lp + mp - 2.0f * sp) / 4.5f;
+
+    float M = _sqrtf(a * a + b * b);
+    float h = _atan2f(b, a) * (180.0f / 3.14159265f);
+    if (h < 0.0f) h += 360.0f;
+
+    return make_float3(J, M, h);
+}
+
+// Convert from Perceptual JMh Space to Linear display space
+__DEVICE__ float3 jmh_to_rgb(float3 jmh) {
+    float J = jmh.x;
+    float M = jmh.y;
+    float h_rad = jmh.z * (3.14159265f / 180.0f);
+
+    float a = M * _cosf(h_rad);
+    float b = M * _sinf(h_rad);
+
+    float lp = J + a * 0.50f + b * 0.10f;
+    float mp = J - a * 0.50f + b * 0.10f;
+    float sp = J - b * 0.45f;
+
+    float l = (lp >= 0.0f) ? _powf(lp, 1.0f / 0.42f) : -_powf(-lp, 1.0f / 0.42f);
+    float m = (mp >= 0.0f) ? _powf(mp, 1.0f / 0.42f) : -_powf(-mp, 1.0f / 0.42f);
+    float s = (sp >= 0.0f) ? _powf(sp, 1.0f / 0.42f) : -_powf(-sp, 1.0f / 0.42f);
+
+    float r = l * Hellwig_M_CAT_inv[0][0] + m * Hellwig_M_CAT_inv[0][1] + s * Hellwig_M_CAT_inv[0][2];
+    float g = l * Hellwig_M_CAT_inv[1][0] + m * Hellwig_M_CAT_inv[1][1] + s * Hellwig_M_CAT_inv[1][2];
+    float b_ch = l * Hellwig_M_CAT_inv[2][0] + m * Hellwig_M_CAT_inv[2][1] + s * Hellwig_M_CAT_inv[2][2];
+
+    return make_float3(r, g, b_ch);
+}
+`;
+
         // 4. UI SELECTIONS
         const srcGamutEl = document.getElementById("srcGamut");
         const srcGammaEl = document.getElementById("srcGamma");
@@ -348,50 +417,23 @@
             const isOutputDisplay = DISPLAY_GAMMAS.includes(dstGamma);
             const useToneMapping = (!isInputDisplay && isOutputDisplay);
 
-            const matrix = get_conversion_matrix(srcGamut, dstGamut);
-
             let dctlCode = `// =====================================================================
 // Custom DCTL: Auto-Routed Color Space Transform
 // Source: ${srcGamut} / ${srcGamma}
 // Target: ${dstGamut} / ${dstGamma}
-// Engine: ${useToneMapping ? "ACES Tone Mapping (Luminance Preserved)" : "Pure Matrix CST (Scene/Linear Math)"}
+// Engine: ${useToneMapping ? "ACES 2.0 Pure CAMDRT Engine" : "Pure Matrix CST (Scene/Linear Math)"}
 // =====================================================================
 `;
 
+            // If tone mapping is used, inject the clean Hellwig CAM library
             if (useToneMapping) {
-                dctlCode += `
-DEFINE_UI_PARAMS(peak_luma, Peak Luminance, DCTLUI_SLIDER_FLOAT, 100.0, 4.8, 4000.0, 10.0)
-DEFINE_UI_PARAMS(midtone_contrast, Midtone Contrast, DCTLUI_SLIDER_FLOAT, 1.15, 0.5, 2.0, 0.05)
-`;
+                dctlCode += ACES_2_0_ENGINE_LIBRARY;
             }
 
             dctlCode += `
 // Step 1: Input Curve Transformation to Linear
 ${get_gamma_code(srcGamma, 'to_linear')}
-`;
 
-            if (useToneMapping) {
-                dctlCode += `
-// Step 2: Highlight Tone Mapper (ACES 2.0 SSTS - Luminance Preserving)
-__DEVICE__ float3 apply_aces_ssts(float3 rgb, float peak_luma, float contrast) {
-    float peak = _fmaxf(peak_luma, 5.0f);
-    float mid_gray_scale = ((peak / 4.8f) - 1.0f) * _powf(0.18f, contrast);
-    
-    float lum = _fmaxf(rgb.x * 0.212639f + rgb.y * 0.715169f + rgb.z * 0.072192f, 0.000001f);
-    float mapped_lum = _powf(lum, contrast);
-    mapped_lum = mapped_lum / (mapped_lum + mid_gray_scale);
-    
-    float scale = mapped_lum / lum;
-    float3 out;
-    out.x = _fmaxf(rgb.x, 0.0f) * scale;
-    out.y = _fmaxf(rgb.y, 0.0f) * scale;
-    out.z = _fmaxf(rgb.z, 0.0f) * scale;
-    return out;
-}
-`;
-            }
-
-            dctlCode += `
 // Step 3: Output Curve Transformation from Linear
 ${get_gamma_code(dstGamma, 'from_linear')}
 
@@ -404,24 +446,66 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
     rgb.x = log_to_linear(rgb.x);
     rgb.y = log_to_linear(rgb.y);
     rgb.z = log_to_linear(rgb.z);
-
-    // 2. Perform Primary Gamut Transformation Matrix
-    float r = ${format_term(matrix[0][0], "rgb.x", true)} ${format_term(matrix[0][1], "rgb.y", false)} ${format_term(matrix[0][2], "rgb.z", false)};
-    float g = ${format_term(matrix[1][0], "rgb.x", true)} ${format_term(matrix[1][1], "rgb.y", false)} ${format_term(matrix[1][2], "rgb.z", false)};
-    float b = ${format_term(matrix[2][0], "rgb.x", true)} ${format_term(matrix[2][1], "rgb.y", false)} ${format_term(matrix[2][2], "rgb.z", false)};
-    
-    rgb = make_float3(r, g, b);
 `;
 
             if (useToneMapping) {
+                // Tone Mapping logic: Transform Source directly to AP1 working space
+                const matrixToAP1 = get_conversion_matrix(srcGamut, "ACES AP1");
+                const matrixFromAP1 = get_conversion_matrix("ACES AP1", dstGamut);
+
+                // Automate Target Display Peak Luma and Midtone Contrast
+                let targetLuma = "100.0f";
+                let targetContrast = "1.15f";
+
+                if (PQ_VARIANTS[dstGamma]) {
+                    targetLuma = `${PQ_VARIANTS[dstGamma].toFixed(1)}f`;
+                    targetContrast = "1.00f";
+                } else if (dstGamma === "HLG") {
+                    targetLuma = "1000.0f";
+                    targetContrast = "1.00f";
+                }
+
                 dctlCode += `
-    // 3. Apply Tone Mapping
-    rgb = apply_aces_ssts(rgb, peak_luma, midtone_contrast);
+    // 2. Perform Primary Gamut Transformation Matrix (Convert to ACES AP1)
+    float r = ${format_term(matrixToAP1[0][0], "rgb.x", true)} ${format_term(matrixToAP1[0][1], "rgb.y", false)} ${format_term(matrixToAP1[0][2], "rgb.z", false)};
+    float g = ${format_term(matrixToAP1[1][0], "rgb.x", true)} ${format_term(matrixToAP1[1][1], "rgb.y", false)} ${format_term(matrixToAP1[1][2], "rgb.z", false)};
+    float b = ${format_term(matrixToAP1[2][0], "rgb.x", true)} ${format_term(matrixToAP1[2][1], "rgb.y", false)} ${format_term(matrixToAP1[2][2], "rgb.z", false)};
+    rgb = make_float3(r, g, b);
+
+    // 3. APPLY ACES 2.0 CAM COLOR APPEARANCE PIPELINE
+    // Translate from Linear AP1 RGB into Perceptual JMh Space
+    float3 jmh = rgb_to_jmh(rgb);
+
+    // Apply the ACES 2.0 SSTS Spline ONLY to the J (Lightness) component
+    jmh.x = eval_ssts(jmh.x, 0.0001f, ${targetLuma}, ${targetContrast});
+
+    // Apply ACES 2.0 Chroma Compression to M (Colorfulness)
+    float chroma_compression = 1.0f / (1.0f + (jmh.x * 0.02f));
+    jmh.y = jmh.y * chroma_compression;
+
+    // Translate back from Perceptual JMh to Linear Display Space
+    rgb = jmh_to_rgb(jmh);
+
+    // 4. Perform Secondary Gamut Transformation Matrix (ACES AP1 to Display Gamut)
+    float out_r = ${format_term(matrixFromAP1[0][0], "rgb.x", true)} ${format_term(matrixFromAP1[0][1], "rgb.y", false)} ${format_term(matrixFromAP1[0][2], "rgb.z", false)};
+    float out_g = ${format_term(matrixFromAP1[1][0], "rgb.x", true)} ${format_term(matrixFromAP1[1][1], "rgb.y", false)} ${format_term(matrixFromAP1[1][2], "rgb.z", false)};
+    float out_b = ${format_term(matrixFromAP1[2][0], "rgb.x", true)} ${format_term(matrixFromAP1[2][1], "rgb.y", false)} ${format_term(matrixFromAP1[2][2], "rgb.z", false)};
+    rgb = make_float3(out_r, out_g, out_b);
+`;
+            } else {
+                // Direct CST Logic (No Tone Mapping): Translate Source Gamut directly to Target Gamut
+                const matrixDirect = get_conversion_matrix(srcGamut, dstGamut);
+                dctlCode += `
+    // 2. Perform Primary Gamut Transformation Matrix
+    float r = ${format_term(matrixDirect[0][0], "rgb.x", true)} ${format_term(matrixDirect[0][1], "rgb.y", false)} ${format_term(matrixDirect[0][2], "rgb.z", false)};
+    float g = ${format_term(matrixDirect[1][0], "rgb.x", true)} ${format_term(matrixDirect[1][1], "rgb.y", false)} ${format_term(matrixDirect[1][2], "rgb.z", false)};
+    float b = ${format_term(matrixDirect[2][0], "rgb.x", true)} ${format_term(matrixDirect[2][1], "rgb.y", false)} ${format_term(matrixDirect[2][2], "rgb.z", false)};
+    rgb = make_float3(r, g, b);
 `;
             }
 
             dctlCode += `
-    // 4. Apply Output Curve Conversion
+    // 5. Apply Output Curve Conversion
     rgb.x = linear_to_log(rgb.x);
     rgb.y = linear_to_log(rgb.y);
     rgb.z = linear_to_log(rgb.z);
@@ -432,7 +516,7 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
             
             // Clean filename
             let cleanFn = `CST_${srcGamut}_${srcGamma}_to_${dstGamut}_${dstGamma}`;
-            cleanFn += useToneMapping ? "_ToneMapped" : "_PureCST";
+            cleanFn += useToneMapping ? "_ACES2" : "_PureCST";
             cleanFn = cleanFn.replace(/[\s\(\)\.\/]/g, "_").replace(/__+/g, "_").replace(/_$/, "") + ".dctl";
 
             codeBlockEl.textContent = dctlCode;
