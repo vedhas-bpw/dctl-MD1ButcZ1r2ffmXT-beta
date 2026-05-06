@@ -110,7 +110,7 @@
             "DJI D-Gamut": { r: [0.7100, 0.3100], g: [0.2100, 0.8800], b: [0.0900, -0.0800], w: [0.3127, 0.3290] },
             "Fujifilm F-Gamut": { r: [0.7080, 0.2920], g: [0.1700, 0.7970], b: [0.1310, 0.0420], w: [0.3127, 0.3290] },
             "Panasonic V-Gamut": { r: [0.7300, 0.2800], g: [0.1650, 0.8300], b: [0.1000, -0.0800], w: [0.3127, 0.3290] },
-            "REDWideGamutRGB": { r: [0.780308, 0.304253], g: [0.121595, 1.459994], b: [0.095094, -0.081049], w: [0.3127, 0.3290] },
+            "REDWideGamutRGB": { r: [0.780308, 0.304253], g: [0.121595, 1.493994], b: [0.095612, -0.084589], w: [0.3127, 0.3290] },
             "Sony S-Gamut": { r: [0.7300, 0.2800], g: [0.1400, 0.8550], b: [0.1000, -0.0500], w: [0.3127, 0.3290] },
             "Sony S-Gamut3": { r: [0.7300, 0.2800], g: [0.1400, 0.8550], b: [0.1000, -0.0500], w: [0.3127, 0.3290] },
             "Sony S-Gamut3.Cine": { r: [0.7660, 0.2750], g: [0.2250, 0.8000], b: [0.0890, -0.0870], w: [0.3127, 0.3290] },
@@ -127,7 +127,7 @@
             "Linear": "IDENTITY"
         };
 
-        // 2. LINEAR ALGEBRA ENGINE (Dynamically guarantees flawless matrices)
+        // 2. LINEAR ALGEBRA ENGINE (Calculates adaptions on-the-fly)
         function xy_to_XYZ(xy) {
             const [x, y] = xy; return [x / y, 1.0, (1.0 - x - y) / y];
         }
@@ -173,7 +173,7 @@
             return `${sign}${Math.abs(val).toFixed(9)}f * ${variable}`;
         }
 
-        // 3. EXACT CURVES DICTIONARY (Official Math Standards Restored & Re-Verified)
+        // 3. EXACT CURVES DICTIONARY (All Curves Re-Verified)
         const GAMMA_FUNCTIONS = {
             "ACEScc": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= -0.358447f) ? (_powf(2.0f, val * 17.52f - 9.72f) - 0.072905f) / 10.5402f : _powf(2.0f, val * 17.52f - 9.72f); }`,
@@ -189,11 +189,11 @@
             },
             "ARRI LogC": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.149658f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.555556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.55556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
             },
             "ARRI LogC3": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.149658f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.555556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.55556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
             },
             "ARRI LogC4": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0f) ? (val / 8.41098863f) - 0.01805711f : (_powf(2.0f, 14.0f * (val - 0.09286412f) / 0.9071358f + 6.0f) - 64.0f) / 2231.8263f; }`,
@@ -252,8 +252,8 @@
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.01f) ? 5.6f * val + 0.125f : 0.241514f * _log10f(val + 0.00873f) + 0.398f; }`
             },
             "RED Log3G10": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0f) ? val / 15.1927f : (_powf(10.0f, val / 0.224282f) - 1.0f) / 155.975327f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.0f) ? 15.1927f * val : 0.224282f * _log10f(155.975327f * val + 1.0f); }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0f) ? (val / 15.1927f) - 0.01f : (_powf(10.0f, val / 0.224282f) - 1.0f) / 155.975327f - 0.01f; }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { float x = val + 0.01f; return (x < 0.0f) ? x * 15.1927f : 0.224282f * _log10f(x * 155.975327f + 1.0f); }`
             },
             "Sony S-Log": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (val * 1023.0f - 400.0f) / 261.5f) - 0.03f; }`,
@@ -333,7 +333,7 @@
         const gammaOptions = Object.keys(GAMMA_FUNCTIONS).concat(Object.keys(PQ_VARIANTS)).sort();
 
         gamutOptions.forEach(opt => { srcGamutEl.add(new Option(opt, opt)); dstGamutEl.add(new Option(opt, opt)); });
-        gammaOptions.forEach(opt => { srcGammaEl.add(new Option(opt, opt)); dstGammaEl.add(new Option(opt, opt)); });
+        gammaOptions.forEach(opt => { srcGammaEl.add(new Option(opt, opt)); dstGamutEl.add(new Option(opt, opt)); });
 
         srcGamutEl.value = "Sony S-Gamut3.Cine"; srcGammaEl.value = "Sony S-Log3";
         dstGamutEl.value = "Rec.709"; dstGammaEl.value = "Gamma 2.4";
