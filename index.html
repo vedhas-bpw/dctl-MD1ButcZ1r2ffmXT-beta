@@ -127,7 +127,7 @@
             "Linear": "IDENTITY"
         };
 
-        // 2. LINEAR ALGEBRA ENGINE (Calculates adaptions on-the-fly)
+        // 2. LINEAR ALGEBRA ENGINE (Adaptations on-the-fly)
         function xy_to_XYZ(xy) {
             const [x, y] = xy; return [x / y, 1.0, (1.0 - x - y) / y];
         }
@@ -162,6 +162,7 @@
             return mat_mul_3x3(M_BF_inv, mat_mul_3x3(D, M_BF));
         }
         function get_conversion_matrix(src_name, dst_name) {
+            if (src_name === dst_name) return [[1,0,0],[0,1,0],[0,0,1]];
             if (PRIMARIES[src_name] === "IDENTITY" || PRIMARIES[dst_name] === "IDENTITY") return [[1,0,0],[0,1,0],[0,0,1]];
             if (PRIMARIES[src_name] === "XYZ") return mat_inv_3x3(get_rgb_to_xyz_matrix(PRIMARIES[dst_name]));
             if (PRIMARIES[dst_name] === "XYZ") return get_rgb_to_xyz_matrix(PRIMARIES[src_name]);
@@ -173,7 +174,7 @@
             return `${sign}${Math.abs(val).toFixed(9)}f * ${variable}`;
         }
 
-        // 3. EXACT CURVES DICTIONARY (All Curves Re-Verified)
+        // 3. EXACT CURVES DICTIONARY (Standard Piecewise Inverses Fully Aligned)
         const GAMMA_FUNCTIONS = {
             "ACEScc": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= -0.358447f) ? (_powf(2.0f, val * 17.52f - 9.72f) - 0.072905f) / 10.5402f : _powf(2.0f, val * 17.52f - 9.72f); }`,
@@ -273,7 +274,7 @@
             },
             "Rec.709-A": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 1.961f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 1.961f); }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 1.961f); }
             },
             "Gamma 2.2": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.2f); }`,
@@ -333,7 +334,7 @@
         const gammaOptions = Object.keys(GAMMA_FUNCTIONS).concat(Object.keys(PQ_VARIANTS)).sort();
 
         gamutOptions.forEach(opt => { srcGamutEl.add(new Option(opt, opt)); dstGamutEl.add(new Option(opt, opt)); });
-        gammaOptions.forEach(opt => { srcGammaEl.add(new Option(opt, opt)); dstGamutEl.add(new Option(opt, opt)); });
+        gammaOptions.forEach(opt => { srcGammaEl.add(new Option(opt, opt)); dstGammaEl.add(new Option(opt, opt)); });
 
         srcGamutEl.value = "Sony S-Gamut3.Cine"; srcGammaEl.value = "Sony S-Log3";
         dstGamutEl.value = "Rec.709"; dstGammaEl.value = "Gamma 2.4";
