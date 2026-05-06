@@ -274,7 +274,7 @@
             },
             "Rec.709-A": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 1.961f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 1.961f); }
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 1.961f); }`
             },
             "Gamma 2.2": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.2f); }`,
