@@ -503,36 +503,52 @@ DEFINE_UI_TOOLTIP(Midtone Contrast, "Adjust display midtone contrast exponent")
 ${get_gamma_code(srcGamma, 'to_linear')}
 `;
 
-            // Appending SSTS Tone Mappers based on Mode
+            // Appending SSTS Tone Mappers based on Mode (FIXED for Luminance Preservation)
             if (useToneMapping) {
                 if (isUltraOptimized) {
                     dctlCode += `
-// Step 2: Rational Sigmoid Approximation of ACES 2.0 SSTS Tone Scale (SDR 100 Nits, Contrast 1.15)
+// Step 2: Rational Sigmoid Approximation of ACES 2.0 SSTS (Luminance Preserving)
 // Completely removes hardware power function cycle penalties (Zero _powf calls)
 __DEVICE__ float3 apply_aces_ssts_fast(float3 rgb) {
+    // 1. Calculate relative luminance (using standard Rec.709 coefficients as a neutral baseline)
+    float lum = _fmaxf(rgb.x * 0.212639f + rgb.y * 0.715169f + rgb.z * 0.072192f, 0.000001f);
+    
+    // 2. Apply the rational Tone Curve purely to the luminance
+    float mapped_lum = (lum * (lum + 1.719098030f)) / (lum * lum + 3.445499700f * lum + 5.792676600f);
+    
+    // 3. Find the compression ratio
+    float scale = mapped_lum / lum;
+    
+    // 4. Scale the RGB channels equally to preserve perfect hue and saturation
     float3 out;
-    float rx = _fmaxf(rgb.x, 0.0f);
-    float gx = _fmaxf(rgb.y, 0.0f);
-    float bx = _fmaxf(rgb.z, 0.0f);
-    out.x = (rx * (rx + 1.719098030f)) / (rx * rx + 3.445499700f * rx + 5.792676600f);
-    out.y = (gx * (gx + 1.719098030f)) / (gx * gx + 3.445499700f * gx + 5.792676600f);
-    out.z = (bx * (bx + 1.719098030f)) / (bx * bx + 3.445499700f * bx + 5.792676600f);
+    out.x = _fmaxf(rgb.x, 0.0f) * scale;
+    out.y = _fmaxf(rgb.y, 0.0f) * scale;
+    out.z = _fmaxf(rgb.z, 0.0f) * scale;
     return out;
 }
 `;
                 } else {
                     dctlCode += `
-// Step 2: Parametric Highlight Tone Mapper (ACES 2.0 Single Stage Tone Scale)
+// Step 2: Parametric Highlight Tone Mapper (ACES 2.0 SSTS - Luminance Preserving)
 __DEVICE__ float3 apply_aces_ssts(float3 rgb, float peak_luma, float contrast) {
     float peak = _fmaxf(peak_luma, 5.0f);
     float mid_gray_scale = ((peak / 4.8f) - 1.0f) * _powf(0.18f, contrast);
+    
+    // 1. Calculate relative luminance
+    float lum = _fmaxf(rgb.x * 0.212639f + rgb.y * 0.715169f + rgb.z * 0.072192f, 0.000001f);
+    
+    // 2. Apply contrast and soft-clip exclusively to luminance
+    float mapped_lum = _powf(lum, contrast);
+    mapped_lum = mapped_lum / (mapped_lum + mid_gray_scale);
+    
+    // 3. Find compression ratio
+    float scale = mapped_lum / lum;
+    
+    // 4. Scale RGB evenly to prevent rat-holing color shifts
     float3 out;
-    out.x = _powf(_fmaxf(rgb.x, 0.0f), contrast);
-    out.y = _powf(_fmaxf(rgb.y, 0.0f), contrast);
-    out.z = _powf(_fmaxf(rgb.z, 0.0f), contrast);
-    out.x = out.x / (out.x + mid_gray_scale);
-    out.y = out.y / (out.y + mid_gray_scale);
-    out.z = out.z / (out.z + mid_gray_scale);
+    out.x = _fmaxf(rgb.x, 0.0f) * scale;
+    out.y = _fmaxf(rgb.y, 0.0f) * scale;
+    out.z = _fmaxf(rgb.z, 0.0f) * scale;
     return out;
 }
 `;
@@ -564,7 +580,7 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
             if (useToneMapping) {
                 if (isUltraOptimized) {
                     dctlCode += `
-    // 3. Apply ACES 2.0 SSTS Rational Tone Map
+    // 3. Apply ACES 2.0 SSTS Rational Tone Map (Hue-Preserving)
     rgb = apply_aces_ssts_fast(rgb);
 `;
                 } else {
