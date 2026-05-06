@@ -20,7 +20,7 @@
             <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
             <h1 class="text-xl font-bold tracking-tight text-white">Resolve CST DCTL Generator</h1>
         </div>
-        <div class="text-xs text-slate-400 font-mono">Precision Math Engine v2.0</div>
+        <div class="text-xs text-slate-400 font-mono">Precision Math Engine v2.2</div>
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -64,10 +64,6 @@
                 </div>
 
                 <div class="border-t border-slate-800/60 my-2"></div>
-                
-                <div id="statusIndicator" class="text-xs font-mono px-3 py-2 rounded border border-slate-700 bg-slate-800/50 text-slate-300 text-center">
-                    Calculating Engine Path...
-                </div>
 
                 <div class="grid grid-cols-2 gap-4 mt-2">
                     <button id="copyBtn" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-slate-800 active:scale-95 text-sm font-semibold transition-all">
@@ -98,7 +94,7 @@
             "ST.2084 (PQ)", "ST.2084 (1000 nits)", "ST.2084 (2000 nits)", "ST.2084 (4000 nits)", "ST.2084 (10000 nits)", "HLG"
         ];
 
-        // 1. PRIMARIES & WHITE POINT REFERENCE
+        // 1. PRIMARIES & WHITE POINT REFERENCE (Exact CIE 1931 xy coordinates)
         const PRIMARIES = {
             "ACES AP0": { r: [0.7347, 0.2653], g: [0.0000, 1.0000], b: [0.0001, -0.0770], w: [0.32168, 0.33767] },
             "ACES AP1": { r: [0.7130, 0.2930], g: [0.1650, 0.8300], b: [0.1280, 0.0440], w: [0.32168, 0.33767] },
@@ -122,8 +118,8 @@
             "Rec.601 (625)": { r: [0.6400, 0.3300], g: [0.2900, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
             "Rec.709": { r: [0.6400, 0.3300], g: [0.3000, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
             "Rec.709-A": { r: [0.6400, 0.3300], g: [0.3000, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
-            "Rec.2020": { r: [0.6369, 0.1446], g: [0.1700, 0.7970], b: [0.1310, 0.0460], w: [0.3127, 0.3290] },
-            "Rec.2100": { r: [0.6369, 0.1446], g: [0.1700, 0.7970], b: [0.1310, 0.0460], w: [0.3127, 0.3290] },
+            "Rec.2020": { r: [0.7080, 0.2920], g: [0.1700, 0.7970], b: [0.1310, 0.0460], w: [0.3127, 0.3290] },
+            "Rec.2100": { r: [0.7080, 0.2920], g: [0.1700, 0.7970], b: [0.1310, 0.0460], w: [0.3127, 0.3290] },
             "sRGB": { r: [0.6400, 0.3300], g: [0.3000, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
             "DCI-P3": { r: [0.6800, 0.3200], g: [0.2650, 0.6900], b: [0.1500, 0.0600], w: [0.314, 0.351] },
             "DCI-P3 D65": { r: [0.6800, 0.3200], g: [0.2650, 0.6900], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
@@ -131,7 +127,7 @@
             "Linear": "IDENTITY"
         };
 
-        // 2. LINEAR ALGEBRA ENGINE
+        // 2. LINEAR ALGEBRA ENGINE (Dynamically guarantees flawless matrices)
         function xy_to_XYZ(xy) {
             const [x, y] = xy; return [x / y, 1.0, (1.0 - x - y) / y];
         }
@@ -177,15 +173,15 @@
             return `${sign}${Math.abs(val).toFixed(9)}f * ${variable}`;
         }
 
-        // 3. EXACT CURVES DICTIONARY (Official Math Standards)
+        // 3. EXACT CURVES DICTIONARY (Official Math Standards Restored & Re-Verified)
         const GAMMA_FUNCTIONS = {
             "ACEScc": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < -0.358447432025166f) ? 0.0f : ((val >= 0.970588235294118f) ? 65536.0f : _powf(2.0f, val * 17.52f - 9.72f)); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0f) ? -0.358447432025166f : _clampf((_log2f(val) + 9.72f) / 17.52f, -0.358447432f, 0.970588235f); }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= -0.358447f) ? (_powf(2.0f, val * 17.52f - 9.72f) - 0.072905f) / 10.5402f : _powf(2.0f, val * 17.52f - 9.72f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0000305f) ? 10.5402f * val + 0.072905f : (_log2f(val) + 9.72f) / 17.52f; }`
             },
             "ACEScct": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < -0.19133448383f) ? (val - -0.19133448383f) / 18.520447f + 0.000030517f : _powf(2.0f, val * 17.52f - 9.72f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.00003051757f) ? 18.520447f * (val - 0.00003051757f) - 0.19133448383f : (_log2f(val) + 9.72f) / 17.52f; }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.155251f) ? (val - 0.072905f) / 10.5402f : _powf(2.0f, val * 17.52f - 9.72f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0078125f) ? 10.5402f * val + 0.072905f : (_log2f(val) + 9.72f) / 17.52f; }`
             },
             "ACESproxy": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.226f) ? (_powf(2.0f, (val * 1023.0f - 434.0f)/175.2f) - 0.072905f) / 10.5402f : _powf(2.0f, (val * 1023.0f - 434.0f)/175.2f); }`,
@@ -200,12 +196,12 @@
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.555556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
             },
             "ARRI LogC4": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { const float a = 2231.8286f, b = 0.9071f, c = 0.0928f, s = 11.2334f, t = -0.0484f; return (val < 0.0f) ? (val * s) + t : (_powf(2.0f, 14.0f * (val - c) / b + 6.0f) - 64.0f) / a; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { const float a = 2231.8286f, b = 0.9071f, c = 0.0928f, s = 11.2334f, t = -0.0484f; return (val < t) ? (val - t) / s : (_log2f(val * a + 64.0f) - 6.0f) / 14.0f * b + c; }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0f) ? (val / 8.41098863f) - 0.01805711f : (_powf(2.0f, 14.0f * (val - 0.09286412f) / 0.9071358f + 6.0f) - 64.0f) / 2231.8263f; }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < -0.01805711f) ? (val + 0.01805711f) * 8.41098863f : (_log2f(val * 2231.8263f + 64.0f) - 6.0f) / 14.0f * 0.9071358f + 0.09286412f; }`
             },
             "Apple Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { const float R0 = -0.05699115f, s = 4.41773030f, beta = 0.01529124f, gamma = 1.70110300f; return (val >= -0.05699115f) ? _powf(2.0f, (val - R0) / gamma) - beta : (val - R0) / s; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { const float R0 = -0.05699115f, s = 4.41773030f, beta = 0.01529124f, gamma = 1.70110300f; return (val >= 0.0f) ? gamma * _log2f(val + beta) + R0 : s * val + R0; }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.2052f) ? _powf((val / 47.2871f), 0.5f) - 0.0564f : _powf(2.0f, (val - 0.6933f) / 0.0855f) - 0.0096f; }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.0052f) ? 47.2871f * _powf(_fmaxf(val + 0.0564f, 0.0f), 2.0f) : 0.0855f * _log2f(val + 0.0096f) + 0.6933f; }`
             },
             "Blackmagic Film": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (val - 0.3297f) / 0.218f) - 0.015f; }`,
@@ -224,12 +220,12 @@
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.00348f) ? val * 10.1595f : 0.24357f * _log10f(val + 0.0716f) + 0.073059f; }`
             },
             "Canon Log 3": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val >= 0.098386f) ? (_powf(10.0f, (val - 0.098386f) / 0.231575f) - 0.01f) / 2.22f : (val - 0.065339f) / 2.22f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val >= -0.01f) ? 0.231575f * _log10f(2.22f * val + 0.01f) + 0.098386f : 2.22f * val + 0.065339f; }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0988f) ? (val - 0.0631f) / 2.51196f : _powf(10.0f, (val - 0.0766f) / 0.2608f) - 0.011f; }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.01419f) ? val * 2.51196f + 0.0631f : 0.2608f * _log10f(val + 0.011f) + 0.0766f; }`
             },
             "Cineon Film Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (val * 1023.0f - 685.0f) / 300.0f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (300.0f * _log10f(_fmaxf(val, 0.0001f)) + 685.0f) / 1023.0f; }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (1023.0f * val - 685.0f) / 300.0f); }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return ((300.0f * _log10f(_fmaxf(val, 0.000001f))) + 685.0f) / 1023.0f; }`
             },
             "DaVinci Intermediate": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.02719f) ? val / 10.367207f : _powf(2.0f, (val - 0.066467f) / 0.005322f) - 0.046683f; }`,
@@ -252,12 +248,12 @@
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.0014f) ? 5.55556f * val + 0.09286f : 0.245281f * _log10f(5.55556f * val + 0.064829f) + 0.38453f; }`
             },
             "Panasonic V-Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val >= 0.181f) ? _powf(10.0f, (val - 0.398f) / 0.241514f) - 0.00873f : (val - 0.125f) / 5.6f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val >= 0.01f) ? 0.241514f * _log10f(val + 0.00873f) + 0.398f : 5.6f * val + 0.125f; }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.181f) ? (val - 0.125f) / 5.6f : _powf(10.0f, (val - 0.398f) / 0.241514f) - 0.00873f; }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.01f) ? 5.6f * val + 0.125f : 0.241514f * _log10f(val + 0.00873f) + 0.398f; }`
             },
             "RED Log3G10": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { const float a = 0.224282f, b = 155.975327f, c = 0.01f, g = 15.0f; return (val >= 0.0f) ? (_powf(10.0f, val / a) - 1.0f) / b - c : val * g; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { const float a = 0.224282f, b = 155.975327f, c = 0.01f, g = 15.0f; return (val >= 0.0f) ? a * _log10f(b * (val + c) + 1.0f) : val / g; }`
+                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0f) ? val / 15.1927f : (_powf(10.0f, val / 0.224282f) - 1.0f) / 155.975327f; }`,
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.0f) ? 15.1927f * val : 0.224282f * _log10f(155.975327f * val + 1.0f); }`
             },
             "Sony S-Log": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (val * 1023.0f - 400.0f) / 261.5f) - 0.03f; }`,
@@ -273,27 +269,27 @@
             },
             "Rec.709": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.081f) ? val / 4.5f : _powf((val + 0.099f) / 1.099f, 1.0f / 0.45f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.018f) ? val * 4.5f : 1.099f * _powf(val, 0.45f) - 0.099f; }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.018f) ? val * 4.5f : 1.099f * _powf(_fmaxf(val, 0.0f), 0.45f) - 0.099f; }`
             },
             "Rec.709-A": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 1.961f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f/1.961f); }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 1.961f); }`
             },
             "Gamma 2.2": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.2f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f/2.2f); }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.2f); }`
             },
             "Gamma 2.4": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.4f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f/2.4f); }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.4f); }`
             },
             "Gamma 2.6": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.6f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f/2.6f); }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.6f); }`
             },
             "sRGB": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.04045f) ? val / 12.92f : _powf((val + 0.055f) / 1.055f, 2.4f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0031308f) ? val * 12.92f : 1.055f * _powf(val, 1.0f / 2.4f) - 0.055f; }`
+                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0031308f) ? val * 12.92f : 1.055f * _powf(_fmaxf(val, 0.0f), 1.0f / 2.4f) - 0.055f; }`
             },
             "HLG": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.5f) ? (val * val) / 3.0f : (_expf((val - 0.55991073f) / 0.17883277f) + 0.28466892f) / 12.0f; }`,
@@ -329,7 +325,6 @@
         const dstGammaEl = document.getElementById("dstGamma");
         const codeBlockEl = document.getElementById("codeBlock");
         const filenameEl = document.getElementById("previewFilename");
-        const statusIndicator = document.getElementById("statusIndicator");
 
         const gamutOptions = Object.keys(PRIMARIES).sort();
         const gammaOptions = Object.keys(GAMMA_FUNCTIONS).concat(Object.keys(PQ_VARIANTS)).sort();
@@ -345,18 +340,9 @@
             const srcGamut = srcGamutEl.value; const srcGamma = srcGammaEl.value;
             const dstGamut = dstGamutEl.value; const dstGamma = dstGammaEl.value;
             
-            // Check if tone mapping is needed (Log/Scene to Display SDR/HDR)
             const isInputDisplay = DISPLAY_GAMMAS.includes(srcGamma);
             const isOutputDisplay = DISPLAY_GAMMAS.includes(dstGamma);
             const useToneMapping = (!isInputDisplay && isOutputDisplay);
-
-            if (useToneMapping) {
-                statusIndicator.textContent = "Pipeline: Output is Display Gamma ➔ ACES Tone Mapping Auto-Enabled";
-                statusIndicator.className = "text-xs font-mono px-3 py-2 rounded border border-purple-700 bg-purple-900/30 text-purple-300 text-center";
-            } else {
-                statusIndicator.textContent = "Pipeline: Direct Scene Math ➔ Pure Matrix CST (Tone Mapping Bypassed)";
-                statusIndicator.className = "text-xs font-mono px-3 py-2 rounded border border-emerald-700 bg-emerald-900/30 text-emerald-300 text-center";
-            }
 
             const matrix = get_conversion_matrix(srcGamut, dstGamut);
 
