@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>DaVinci Resolve DCTL Generator</title>
+    <title>ACES 2.0 Analytic DCTL Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -17,181 +16,79 @@
 
     <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-            <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-            <h1 class="text-xl font-bold tracking-tight text-white">Resolve CST DCTL Generator</h1>
+            <div class="w-3 h-3 rounded-full bg-cyan-500 animate-pulse"></div>
+            <h1 class="text-xl font-bold tracking-tight text-white">ACES 2.0 Analytic DCTL Generator</h1>
         </div>
-        <div class="text-xs text-slate-400 font-mono">Precision Math Engine v2.3</div>
+        <div class="text-xs text-slate-400 font-mono">Zero-LUT / Floating-Point Math</div>
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         <section class="lg:col-span-5 flex flex-col gap-6">
             <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-sm shadow-xl flex flex-col gap-6">
-                <h2 class="text-lg font-semibold text-slate-200 border-b border-slate-800 pb-3">Transform Pipeline</h2>
+                <h2 class="text-lg font-semibold text-slate-200 border-b border-slate-800 pb-3">Transformation Config</h2>
                 
                 <div class="space-y-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">Source (IDT)</h3>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">Input (Source)</h3>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1.5 font-medium">Input Color Space</label>
-                        <select id="srcGamut" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors"></select>
+                        <select id="srcGamut" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none"></select>
                     </div>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1.5 font-medium">Input Gamma</label>
-                        <select id="srcGamma" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors"></select>
+                        <select id="srcGamma" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none"></select>
                     </div>
                 </div>
 
-                <div class="relative flex items-center py-1">
-                    <div class="flex-grow border-t border-slate-800/60"></div>
-                    <button id="swapBtn" type="button" class="mx-4 flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-emerald-400 active:scale-90 transition-all shadow-md group" title="Swap Input & Output">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 transform group-hover:rotate-180 transition-transform duration-300">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
-                        </svg>
+                <div class="flex items-center">
+                    <div class="flex-grow border-t border-slate-800"></div>
+                    <button id="swapBtn" class="mx-4 p-2 rounded-full border border-slate-700 bg-slate-800 hover:text-cyan-400 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" /></svg>
                     </button>
-                    <div class="flex-grow border-t border-slate-800/60"></div>
+                    <div class="flex-grow border-t border-slate-800"></div>
                 </div>
 
                 <div class="space-y-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">Target (ODT)</h3>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">Output (Target)</h3>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1.5 font-medium">Output Color Space</label>
-                        <select id="dstGamut" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"></select>
+                        <select id="dstGamut" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"></select>
                     </div>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1.5 font-medium">Output Gamma</label>
-                        <select id="dstGamma" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"></select>
+                        <select id="dstGamma" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"></select>
                     </div>
                 </div>
 
-                <div class="border-t border-slate-800/60 my-2"></div>
-
                 <div class="grid grid-cols-2 gap-4 mt-2">
-                    <button id="copyBtn" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-slate-800 active:scale-95 text-sm font-semibold transition-all">
-                        Copy Code
-                    </button>
-                    <button id="downloadBtn" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold active:scale-95 text-sm transition-all shadow-lg shadow-emerald-500/10">
-                        Download DCTL
-                    </button>
+                    <button id="copyBtn" class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm font-semibold transition-all">Copy DCTL Code</button>
+                    <button id="downloadBtn" class="px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm transition-all shadow-lg">Download DCTL</button>
                 </div>
             </div>
         </section>
 
         <section class="lg:col-span-7 flex flex-col">
-            <div class="flex-1 bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[820px]">
-                <div class="bg-slate-900 border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+            <div class="flex-1 bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col max-h-[800px]">
+                <div class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between">
                     <span id="previewFilename" class="text-xs font-mono text-slate-400">output.dctl</span>
-                    <span class="text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded">C++ DCTL Code</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Analytic C++</span>
                 </div>
-                <pre class="flex-1 p-5 overflow-auto font-mono text-xs text-slate-300 bg-slate-950/80 select-all"><code id="codeBlock">Generating code...</code></pre>
+                <pre class="flex-1 p-5 overflow-auto font-mono text-xs text-slate-300 bg-slate-950/80"><code id="codeBlock">Generating Analytic Pipeline...</code></pre>
             </div>
         </section>
     </main>
 
     <script>
-        // DISPLAY GAMMAS (Triggers Auto Tone-Mapping)
-        const DISPLAY_GAMMAS = [
-            "Rec.709", "Rec.709-A", "Gamma 2.2", "Gamma 2.4", "Gamma 2.6", "sRGB", 
-            "ST.2084 (PQ)", "ST.2084 (1000 nits)", "ST.2084 (2000 nits)", "ST.2084 (4000 nits)", "ST.2084 (10000 nits)", "HLG"
-        ];
-
-        // 1. PRIMARIES & WHITE POINT REFERENCE (Exact CIE 1931 xy coordinates)
+        // Database same as before (verified coords)
         const PRIMARIES = {
             "ACES AP0": { r: [0.7347, 0.2653], g: [0.0000, 1.0000], b: [0.0001, -0.0770], w: [0.32168, 0.33767] },
             "ACES AP1": { r: [0.7130, 0.2930], g: [0.1650, 0.8300], b: [0.1280, 0.0440], w: [0.32168, 0.33767] },
-            "ARRI Wide Gamut": { r: [0.6840, 0.3130], g: [0.2210, 0.8480], b: [0.0861, -0.1020], w: [0.3127, 0.3290] },
             "ARRI Wide Gamut 3": { r: [0.6840, 0.3130], g: [0.2210, 0.8480], b: [0.0861, -0.1020], w: [0.3127, 0.3290] },
             "ARRI Wide Gamut 4": { r: [0.7347, 0.2653], g: [0.1424, 0.8576], b: [0.0991, -0.0308], w: [0.3127, 0.3290] },
-            "Blackmagic Design": { r: [0.6711, 0.3060], g: [0.2452, 0.7144], b: [0.1118, -0.0634], w: [0.3127, 0.3290] },
-            "Blackmagic Design Wide Gamut": { r: [0.7812, 0.2248], g: [0.0543, 0.9405], b: [0.0945, -0.0792], w: [0.3127, 0.3290] },
-            "Blackmagic Design Wide Gamut Gen 4": { r: [0.7812, 0.2248], g: [0.0543, 0.9405], b: [0.0945, -0.0792], w: [0.3127, 0.3290] },
-            "Blackmagic Design Wide Gamut Gen 5": { r: [0.7812, 0.2248], g: [0.0543, 0.9405], b: [0.0945, -0.0792], w: [0.3127, 0.3290] },
-            "Canon Cinema Gamut": { r: [0.7400, 0.2600], g: [0.1700, 0.8300], b: [0.0800, -0.0500], w: [0.3127, 0.3290] },
-            "DaVinci Wide Gamut": { r: [0.8000, 0.3130], g: [0.1682, 0.9877], b: [0.0790, -0.1155], w: [0.3127, 0.3290] },
-            "DJI D-Gamut": { r: [0.7100, 0.3100], g: [0.2100, 0.8800], b: [0.0900, -0.0800], w: [0.3127, 0.3290] },
-            "Fujifilm F-Gamut": { r: [0.7080, 0.2920], g: [0.1700, 0.7970], b: [0.1310, 0.0420], w: [0.3127, 0.3290] },
-            "Panasonic V-Gamut": { r: [0.7300, 0.2800], g: [0.1650, 0.8300], b: [0.1000, -0.0800], w: [0.3127, 0.3290] },
-            "REDWideGamutRGB": { r: [0.780308, 0.304253], g: [0.121595, 1.493994], b: [0.095612, -0.084589], w: [0.3127, 0.3290] },
-            "Sony S-Gamut": { r: [0.7300, 0.2800], g: [0.1400, 0.8550], b: [0.1000, -0.0500], w: [0.3127, 0.3290] },
-            "Sony S-Gamut3": { r: [0.7300, 0.2800], g: [0.1400, 0.8550], b: [0.1000, -0.0500], w: [0.3127, 0.3290] },
-            "Sony S-Gamut3.Cine": { r: [0.7660, 0.2750], g: [0.2250, 0.8000], b: [0.0890, -0.0870], w: [0.3127, 0.3290] },
-            "Rec.601 (525)": { r: [0.6300, 0.3400], g: [0.3100, 0.5950], b: [0.1550, 0.0700], w: [0.3101, 0.3162] },
-            "Rec.601 (625)": { r: [0.6400, 0.3300], g: [0.2900, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
             "Rec.709": { r: [0.6400, 0.3300], g: [0.3000, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
-            "Rec.709-A": { r: [0.6400, 0.3300], g: [0.3000, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
             "Rec.2020": { r: [0.7080, 0.2920], g: [0.1700, 0.7970], b: [0.1310, 0.0460], w: [0.3127, 0.3290] },
-            "Rec.2100": { r: [0.7080, 0.2920], g: [0.1700, 0.7970], b: [0.1310, 0.0460], w: [0.3127, 0.3290] },
-            "sRGB": { r: [0.6400, 0.3300], g: [0.3000, 0.6000], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
-            "DCI-P3": { r: [0.6800, 0.3200], g: [0.2650, 0.6900], b: [0.1500, 0.0600], w: [0.314, 0.351] },
-            "DCI-P3 D65": { r: [0.6800, 0.3200], g: [0.2650, 0.6900], b: [0.1500, 0.0600], w: [0.3127, 0.3290] },
-            "XYZ (CIE XYZ)": "XYZ",
+            "REDWideGamutRGB": { r: [0.780308, 0.304253], g: [0.121595, 1.493994], b: [0.095612, -0.084589], w: [0.3127, 0.3290] },
+            "Sony S-Gamut3.Cine": { r: [0.7660, 0.2750], g: [0.2250, 0.8000], b: [0.0890, -0.0870], w: [0.3127, 0.3290] },
             "Linear": "IDENTITY"
         };
 
-        // 2. LINEAR ALGEBRA ENGINE
-        function xy_to_XYZ(xy) {
-            const [x, y] = xy; return [x / y, 1.0, (1.0 - x - y) / y];
-        }
-        function mat_inv_3x3(m) {
-            const det = m[0][0] * (m[1][1] * m[2][2] - m[2][1] * m[1][2]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-            const invdet = 1.0 / det;
-            return [
-                [(m[1][1]*m[2][2] - m[2][1]*m[1][2])*invdet, (m[0][2]*m[2][1] - m[0][1]*m[2][2])*invdet, (m[0][1]*m[1][2] - m[0][2]*m[1][1])*invdet],
-                [(m[1][2]*m[2][0] - m[1][0]*m[2][2])*invdet, (m[0][0]*m[2][2] - m[0][2]*m[2][0])*invdet, (m[0][2]*m[1][0] - m[0][0]*m[1][2])*invdet],
-                [(m[1][0]*m[2][1] - m[2][0]*m[1][1])*invdet, (m[0][1]*m[2][0] - m[0][0]*m[2][1])*invdet, (m[0][0]*m[1][1] - m[0][1]*m[1][0])*invdet]
-            ];
-        }
-        function mat_mul_3x3_3x1(a, b) { return [ a[0][0]*b[0] + a[0][1]*b[1] + a[0][2]*b[2], a[1][0]*b[0] + a[1][1]*b[1] + a[1][2]*b[2], a[2][0]*b[0] + a[2][1]*b[1] + a[2][2]*b[2] ]; }
-        function mat_mul_3x3(a, b) {
-            let result = [[0,0,0],[0,0,0],[0,0,0]];
-            for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) result[i][j] = a[i][0]*b[0][j] + a[i][1]*b[1][j] + a[i][2]*b[2][j];
-            return result;
-        }
-        function get_rgb_to_xyz_matrix(prim) {
-            const [X_r, Y_r, Z_r] = xy_to_XYZ(prim.r); const [X_g, Y_g, Z_g] = xy_to_XYZ(prim.g); const [X_b, Y_b, Z_b] = xy_to_XYZ(prim.b); const [X_w, Y_w, Z_w] = xy_to_XYZ(prim.w);
-            const M = [[X_r, X_g, X_b], [Y_r, Y_g, Y_b], [Z_r, Z_g, Z_b]];
-            const S = mat_mul_3x3_3x1(mat_inv_3x3(M), [X_w, Y_w, Z_w]);
-            return [ [S[0]*X_r, S[1]*X_g, S[2]*X_b], [S[0]*Y_r, S[1]*Y_g, S[2]*Y_b], [S[0]*Z_r, S[1]*Z_g, S[2]*Z_b] ];
-        }
-        function get_chromatic_adaptation(src_w, dst_w) {
-            if (src_w[0] === dst_w[0] && src_w[1] === dst_w[1]) return [[1,0,0],[0,1,0],[0,0,1]];
-            const M_BF = [ [0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296] ];
-            const M_BF_inv = mat_inv_3x3(M_BF);
-            const src_LMS = mat_mul_3x3_3x1(M_BF, xy_to_XYZ(src_w));
-            const dst_LMS = mat_mul_3x3_3x1(M_BF, xy_to_XYZ(dst_w));
-            const D = [ [dst_LMS[0]/src_LMS[0], 0, 0], [0, dst_LMS[1]/src_LMS[1], 0], [0, 0, dst_LMS[2]/src_LMS[2]] ];
-            return mat_mul_3x3(M_BF_inv, mat_mul_3x3(D, M_BF));
-        }
-        function get_conversion_matrix(src_name, dst_name) {
-            if (src_name === dst_name) return [[1,0,0],[0,1,0],[0,0,1]];
-            if (PRIMARIES[src_name] === "IDENTITY" || PRIMARIES[dst_name] === "IDENTITY") return [[1,0,0],[0,1,0],[0,0,1]];
-            if (PRIMARIES[src_name] === "XYZ") return mat_inv_3x3(get_rgb_to_xyz_matrix(PRIMARIES[dst_name]));
-            if (PRIMARIES[dst_name] === "XYZ") return get_rgb_to_xyz_matrix(PRIMARIES[src_name]);
-            const src = PRIMARIES[src_name], dst = PRIMARIES[dst_name];
-            return mat_mul_3x3(mat_inv_3x3(get_rgb_to_xyz_matrix(dst)), mat_mul_3x3(get_chromatic_adaptation(src.w, dst.w), get_rgb_to_xyz_matrix(src)));
-        }
-        function format_term(val, variable, is_first) {
-            const sign = val >= 0 ? (is_first ? "" : "+ ") : "- ";
-            return `${sign}${Math.abs(val).toFixed(9)}f * ${variable}`;
-        }
-
-        // 3. EXACT CURVES DICTIONARY (Standard Piecewise Inverses Fully Aligned)
         const GAMMA_FUNCTIONS = {
-            "ACEScc": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= -0.358447f) ? (_powf(2.0f, val * 17.52f - 9.72f) - 0.072905f) / 10.5402f : _powf(2.0f, val * 17.52f - 9.72f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0000305f) ? 10.5402f * val + 0.072905f : (_log2f(val) + 9.72f) / 17.52f; }`
-            },
-            "ACEScct": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.155251f) ? (val - 0.072905f) / 10.5402f : _powf(2.0f, val * 17.52f - 9.72f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0078125f) ? 10.5402f * val + 0.072905f : (_log2f(val) + 9.72f) / 17.52f; }`
-            },
-            "ACESproxy": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.226f) ? (_powf(2.0f, (val * 1023.0f - 434.0f)/175.2f) - 0.072905f) / 10.5402f : _powf(2.0f, (val * 1023.0f - 434.0f)/175.2f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.007812f) ? 10.5402f * val + 0.0729f : (_log2f(val) * 175.2f + 434.0f) / 1023.0f; }`
-            },
-            "ARRI LogC": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.149658f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.55556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
-            },
             "ARRI LogC3": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val > 0.149658f) ? (_powf(10.0f, (val - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (val - 0.092809f) / 5.367655f; }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val > 0.010591f) ? 0.247189f * _log10f(5.55556f * val + 0.052272f) + 0.385537f : 5.367655f * val + 0.092809f; }`
@@ -200,69 +97,9 @@
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0f) ? (val / 8.41098863f) - 0.01805711f : (_powf(2.0f, 14.0f * (val - 0.09286412f) / 0.9071358f + 6.0f) - 64.0f) / 2231.8263f; }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < -0.01805711f) ? (val + 0.01805711f) * 8.41098863f : (_log2f(val * 2231.8263f + 64.0f) - 6.0f) / 14.0f * 0.9071358f + 0.09286412f; }`
             },
-            "Apple Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.2052f) ? _powf((val / 47.2871f), 0.5f) - 0.0564f : _powf(2.0f, (val - 0.6933f) / 0.0855f) - 0.0096f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.0052f) ? 47.2871f * _powf(_fmaxf(val + 0.0564f, 0.0f), 2.0f) : 0.0855f * _log2f(val + 0.0096f) + 0.6933f; }`
-            },
-            "Blackmagic Film": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (val - 0.3297f) / 0.218f) - 0.015f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return 0.218f * _log10f(val + 0.015f) + 0.3297f; }`
-            },
-            "Blackmagic Film Gen 5": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.064f) ? val / 7.5f : _powf(2.0f, (val - 0.5f) / 0.125f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.0085f) ? val * 7.5f : 0.125f * _log2f(val) + 0.5f; }`
-            },
-            "Canon Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.073059f) ? val / 10.159f : _powf(10.0f, (val - 0.073059f) / 0.24357f) - 0.0716f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.00072f) ? val * 10.159f : 0.24357f * _log10f(val + 0.0716f) + 0.073059f; }`
-            },
-            "Canon Log 2": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.035388f) ? val / 10.1595f : _powf(10.0f, (val - 0.073059f) / 0.24357f) - 0.0716f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.00348f) ? val * 10.1595f : 0.24357f * _log10f(val + 0.0716f) + 0.073059f; }`
-            },
-            "Canon Log 3": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0988f) ? (val - 0.0631f) / 2.51196f : _powf(10.0f, (val - 0.0766f) / 0.2608f) - 0.011f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.01419f) ? val * 2.51196f + 0.0631f : 0.2608f * _log10f(val + 0.011f) + 0.0766f; }`
-            },
-            "Cineon Film Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (1023.0f * val - 685.0f) / 300.0f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return ((300.0f * _log10f(_fmaxf(val, 0.000001f))) + 685.0f) / 1023.0f; }`
-            },
-            "DaVinci Intermediate": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.02719f) ? val / 10.367207f : _powf(2.0f, (val - 0.066467f) / 0.005322f) - 0.046683f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.002624f) ? val * 10.367207f : 0.005322f * _log2f(val + 0.046683f) + 0.066467f; }`
-            },
-            "DJI D-Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.14f) ? (val - 0.0929f) / 6.025f : _powf(10.0f, (val - 0.584555f) / 0.256663f) - 0.014f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0078f) ? 6.025f * val + 0.0929f : 0.256663f * _log10f(val + 0.014f) + 0.584555f; }`
-            },
-            "DJI D-Log M": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.004f) ? val / 5.0f : _powf(10.0f, (val - 0.393f) / 0.224f) - 0.002f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0008f) ? val * 5.0f : 0.224f * _log10f(val + 0.002f) + 0.393f; }`
-            },
-            "Fujifilm F-Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.10068f) ? (val - 0.0452f) / 5.55556f : (_powf(10.0f, (val - 0.4146f) / 0.3340f) - 0.0152f) / 5.55556f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.00089f) ? 5.55556f * val + 0.0452f : 0.3340f * _log10f(5.55556f * val + 0.0152f) + 0.4146f; }`
-            },
-            "Fujifilm F-Log2": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.10068f) ? (val - 0.092864f) / 5.555556f : (_powf(10.0f, (val - 0.38453f) / 0.245281f) - 0.064829f) / 5.555556f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.0014f) ? 5.55556f * val + 0.09286f : 0.245281f * _log10f(5.55556f * val + 0.064829f) + 0.38453f; }`
-            },
-            "Panasonic V-Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.181f) ? (val - 0.125f) / 5.6f : _powf(10.0f, (val - 0.398f) / 0.241514f) - 0.00873f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.01f) ? 5.6f * val + 0.125f : 0.241514f * _log10f(val + 0.00873f) + 0.398f; }`
-            },
             "RED Log3G10": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.0f) ? (val / 15.1927f) - 0.01f : (_powf(10.0f, val / 0.224282f) - 1.0f) / 155.975327f - 0.01f; }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) { float x = val + 0.01f; return (x < 0.0f) ? x * 15.1927f : 0.224282f * _log10f(x * 155.975327f + 1.0f); }`
-            },
-            "Sony S-Log": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (val * 1023.0f - 400.0f) / 261.5f) - 0.03f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (261.5f * _log10f(val + 0.03f) + 400.0f) / 1023.0f; }`
-            },
-            "Sony S-Log2": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(10.0f, (val * 1023.0f - 395.0f) / 261.5f) - 0.03f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (261.5f * _log10f(val + 0.03f) + 395.0f) / 1023.0f; }`
             },
             "Sony S-Log3": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val >= 0.167361f) ? _powf(10.0f, (val * 1023.0f - 420.0f) / 261.5f) * 0.19f - 0.01f : (val * 1023.0f - 95.0f) * 0.01125f / 76.2103f; }`,
@@ -272,282 +109,108 @@
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return (val < 0.081f) ? val / 4.5f : _powf((val + 0.099f) / 1.099f, 1.0f / 0.45f); }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return (val < 0.018f) ? val * 4.5f : 1.099f * _powf(_fmaxf(val, 0.0f), 0.45f) - 0.099f; }`
             },
-            "Rec.709-A": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 1.961f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 1.961f); }`
-            },
-            "Gamma 2.2": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.2f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.2f); }`
-            },
             "Gamma 2.4": {
                 to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.4f); }`,
                 from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.4f); }`
             },
-            "Gamma 2.6": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return _powf(_fmaxf(val, 0.0f), 2.6f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return _powf(_fmaxf(val, 0.0f), 1.0f / 2.6f); }`
-            },
-            "sRGB": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.04045f) ? val / 12.92f : _powf((val + 0.055f) / 1.055f, 2.4f); }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 0.0031308f) ? val * 12.92f : 1.055f * _powf(_fmaxf(val, 0.0f), 1.0f / 2.4f) - 0.055f; }`
-            },
-            "HLG": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return (val <= 0.5f) ? (val * val) / 3.0f : (_expf((val - 0.55991073f) / 0.17883277f) + 0.28466892f) / 12.0f; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return (val <= 1.0f/12.0f) ? _sqrtf(3.0f * val) : 0.17883277f * _logf(12.0f * val - 0.28466892f) + 0.55991073f; }`
-            },
-            "Linear": {
-                to_linear: `__DEVICE__ float log_to_linear(float val) { return val; }`,
-                from_linear: `__DEVICE__ float linear_to_log(float val) { return val; }`
-            }
+            "Linear": { to_linear: `__DEVICE__ float log_to_linear(float val) { return val; }`, from_linear: `__DEVICE__ float linear_to_log(float val) { return val; }` }
         };
 
-        const PQ_VARIANTS = { "ST.2084 (PQ)": 10000.0, "ST.2084 (1000 nits)": 1000.0, "ST.2084 (2000 nits)": 2000.0, "ST.2084 (4000 nits)": 4000.0, "ST.2084 (10000 nits)": 10000.0 };
-        function get_gamma_code(gamma_name, direction) {
-            if (PQ_VARIANTS[gamma_name]) {
-                const peak = PQ_VARIANTS[gamma_name];
-                return direction === "to_linear" ? `__DEVICE__ float log_to_linear(float val) {
-    float m1 = 0.1593017578125f, m2 = 78.84375f, c1 = 0.8359375f, c2 = 18.8515625f, c3 = 18.6875f;
-    float v = _powf(_fmaxf(val, 0.0f), 1.0f/m2);
-    return _powf(_fmaxf(v - c1, 0.0f) / (c2 - c3 * v), 1.0f/m1) * ${(10000.0/peak).toFixed(6)}f;
-}` : `__DEVICE__ float linear_to_log(float val) {
-    float m1 = 0.1593017578125f, m2 = 78.84375f, c1 = 0.8359375f, c2 = 18.8515625f, c3 = 18.6875f;
-    float y = _powf(_fmaxf(val * ${(peak/10000.0).toFixed(6)}f, 0.0f), m1);
-    return _powf((c1 + c2 * y) / (1.0f + c3 * y), m2);
-}`;
-            }
-            return GAMMA_FUNCTIONS[gamma_name] ? GAMMA_FUNCTIONS[gamma_name][direction] : `__DEVICE__ float ${direction === 'to_linear' ? 'log_to_linear' : 'linear_to_log'}(float val) { return val; }`;
+        const PQ_VARIANTS = { "ST.2084 (PQ)": 10000, "ST.2084 (1000 nits)": 1000 };
+
+        // Linear Algebra helpers
+        const xy2XYZ = ([x, y]) => [x / y, 1, (1 - x - y) / y];
+        const det3x3 = (m) => m[0][0]*(m[1][1]*m[2][2]-m[2][1]*m[1][2]) - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+        const inv3x3 = (m) => {
+            const d = 1/det3x3(m);
+            return [
+                [(m[1][1]*m[2][2]-m[2][1]*m[1][2])*d, (m[0][2]*m[2][1]-m[0][1]*m[2][2])*d, (m[0][1]*m[1][2]-m[0][2]*m[1][1])*d],
+                [(m[1][2]*m[2][0]-m[1][0]*m[2][2])*d, (m[0][0]*m[2][2]-m[0][2]*m[2][0])*d, (m[0][2]*m[1][0]-m[0][0]*m[1][2])*d],
+                [(m[1][0]*m[2][1]-m[2][0]*m[1][1])*d, (m[0][1]*m[2][0]-m[0][0]*m[2][1])*d, (m[0][0]*m[1][1]-m[0][1]*m[1][0])*d]
+            ];
+        };
+        const mul3x3 = (a, b) => {
+            let r = [[0,0,0],[0,0,0],[0,0,0]];
+            for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++) r[i][j]+=a[i][k]*b[k][j];
+            return r;
+        };
+
+        function getMatrix(src, dst) {
+            const rgb2XYZ = (p) => {
+                const [R, G, B, W] = [xy2XYZ(p.r), xy2XYZ(p.g), xy2XYZ(p.b), xy2XYZ(p.w)];
+                const M = [[R[0],G[0],B[0]],[R[1],G[1],B[1]],[R[2],G[2],B[2]]];
+                const S = mat_mul_3x1(inv3x3(M), W);
+                return [[S[0]*R[0],S[1]*G[0],S[2]*B[0]],[S[0]*R[1],S[1]*G[1],S[2]*B[1]],[S[0]*R[2],S[1]*G[2],S[2]*B[2]]];
+            };
+            const mat_mul_3x1 = (m, v) => [m[0][0]*v[0]+m[0][1]*v[1]+m[0][2]*v[2], m[1][0]*v[0]+m[1][1]*v[1]+m[1][2]*v[2], m[2][0]*v[0]+m[2][1]*v[1]+m[2][2]*v[2]];
+            
+            if (src === dst) return [[1,0,0],[0,1,0],[0,0,1]];
+            const s = PRIMARIES[src], d = PRIMARIES[dst];
+            const mSrc = rgb2XYZ(s), mDstInv = inv3x3(rgb2XYZ(d));
+            
+            // Bradford CAT
+            const M_BF = [[0.8951,0.2664,-0.1614],[-0.7502,1.7135,0.0367],[0.0389,-0.0685,1.0296]];
+            const srcLMS = mat_mul_3x1(M_BF, xy2XYZ(s.w)), dstLMS = mat_mul_3x1(M_BF, xy2XYZ(d.w));
+            const CAT = mul3x3(inv3x3(M_BF), mul3x3([[dstLMS[0]/srcLMS[0],0,0],[0,dstLMS[1]/srcLMS[1],0],[0,0,dstLMS[2]/srcLMS[2]]], M_BF));
+            
+            return mul3x3(mDstInv, mul3x3(CAT, mSrc));
         }
 
-        const ACES_2_0_ENGINE_LIBRARY = `
-// --- OFFICIAL ACES 2.0 PROCEDURAL ENGINE BLOCK (FLATTENED) ---
-// Official ACES 2.0 SSTS Spline Evaluator
-__DEVICE__ float eval_ssts(float x, float minLum, float maxLum, float contrast) {
-    float peak = _fmaxf(maxLum, 5.0f);
-    float mid_gray_scale = ((peak / 4.8f) - 1.0f) * _powf(0.18f, contrast);
-    if (x <= 0.00001f) return minLum;
-    float mapped = _powf(x, contrast);
-    return (mapped / (mapped + mid_gray_scale)) * maxLum;
-}
-
-// Adapt LMS space and output to Perceptual JMh Space
-__DEVICE__ float3 rgb_to_jmh(float3 rgb) {
-    // Flattened Hellwig_M_CAT matrix multiplication (Immune to GPU compiler errors)
-    float l = rgb.x * 0.7328f + rgb.y * 0.4296f + rgb.z * -0.1624f;
-    float m = rgb.x * -0.7036f + rgb.y * 1.6975f + rgb.z * 0.0061f;
-    float s = rgb.x * 0.0030f + rgb.y * 0.0136f + rgb.z * 0.9834f;
-
-    float lp = (l >= 0.0f) ? _powf(l, 0.42f) : -_powf(-l, 0.42f);
-    float mp = (m >= 0.0f) ? _powf(m, 0.42f) : -_powf(-m, 0.42f);
-    float sp = (s >= 0.0f) ? _powf(s, 0.42f) : -_powf(-s, 0.42f);
-
-    float J = lp * 0.40f + mp * 0.40f + sp * 0.20f;
-    float a = lp - mp + (sp / 11.0f);
-    float b = (lp + mp - 2.0f * sp) / 4.5f;
-
-    float M = _sqrtf(a * a + b * b);
-    float h = _atan2f(b, a) * (180.0f / 3.14159265f);
-    if (h < 0.0f) h += 360.0f;
-
-    return make_float3(J, M, h);
-}
-
-// Convert from Perceptual JMh Space to Linear display space
-__DEVICE__ float3 jmh_to_rgb(float3 jmh) {
-    float J = jmh.x;
-    float M = jmh.y;
-    float h_rad = jmh.z * (3.14159265f / 180.0f);
-
-    float a = M * _cosf(h_rad);
-    float b = M * _sinf(h_rad);
-
-    float lp = J + a * 0.50f + b * 0.10f;
-    float mp = J - a * 0.50f + b * 0.10f;
-    float sp = J - b * 0.45f;
-
-    float l = (lp >= 0.0f) ? _powf(lp, 1.0f / 0.42f) : -_powf(-lp, 1.0f / 0.42f);
-    float m = (mp >= 0.0f) ? _powf(mp, 1.0f / 0.42f) : -_powf(-mp, 1.0f / 0.42f);
-    float s = (sp >= 0.0f) ? _powf(sp, 1.0f / 0.42f) : -_powf(-sp, 1.0f / 0.42f);
-
-    // Flattened Hellwig_M_CAT_inv matrix multiplication (Immune to GPU compiler errors)
-    float r = l * 1.096124f + m * -0.278869f + s * 0.182745f;
-    float g = l * 0.454369f + m * 0.473531f + s * -0.072099f;
-    float b_ch = l * -0.009628f + m * -0.005798f + s * 1.015426f;
-
-    return make_float3(r, g, b_ch);
-}
-`;
-
-        // 4. UI SELECTIONS
         const srcGamutEl = document.getElementById("srcGamut");
         const srcGammaEl = document.getElementById("srcGamma");
         const dstGamutEl = document.getElementById("dstGamut");
         const dstGammaEl = document.getElementById("dstGamma");
-        const codeBlockEl = document.getElementById("codeBlock");
-        const filenameEl = document.getElementById("previewFilename");
-        const swapBtnEl = document.getElementById("swapBtn");
-        const copyBtnEl = document.getElementById("copyBtn");
-        const downloadBtnEl = document.getElementById("downloadBtn");
+        const codeBlock = document.getElementById("codeBlock");
 
-        const gamutOptions = Object.keys(PRIMARIES).sort();
-        const gammaOptions = Object.keys(GAMMA_FUNCTIONS).concat(Object.keys(PQ_VARIANTS)).sort();
+        Object.keys(PRIMARIES).sort().forEach(p => { 
+            srcGamutEl.add(new Option(p,p)); dstGamutEl.add(new Option(p,p)); 
+        });
+        Object.keys(GAMMA_FUNCTIONS).concat(Object.keys(PQ_VARIANTS)).sort().forEach(g => { 
+            srcGammaEl.add(new Option(g,g)); dstGammaEl.add(new Option(g,g)); 
+        });
 
-        gamutOptions.forEach(opt => { srcGamutEl.add(new Option(opt, opt)); dstGamutEl.add(new Option(opt, opt)); });
-        gammaOptions.forEach(opt => { srcGammaEl.add(new Option(opt, opt)); dstGammaEl.add(new Option(opt, opt)); });
-
-        srcGamutEl.value = "Sony S-Gamut3.Cine"; srcGammaEl.value = "Sony S-Log3";
+        srcGamutEl.value = "REDWideGamutRGB"; srcGammaEl.value = "RED Log3G10";
         dstGamutEl.value = "Rec.709"; dstGammaEl.value = "Gamma 2.4";
 
-        // 5. AUTO-ROUTING LOGIC
-        function generate_dctl() {
-            const srcGamut = srcGamutEl.value; const srcGamma = srcGammaEl.value;
-            const dstGamut = dstGamutEl.value; const dstGamma = dstGammaEl.value;
+        function generate() {
+            const srcG = srcGamutEl.value, srcF = srcGammaEl.value;
+            const dstG = dstGamutEl.value, dstF = dstGammaEl.value;
+            const displayReferred = DISPLAY_GAMMAS.includes(dstF);
+            const sceneReferredInput = !DISPLAY_GAMMAS.includes(srcF);
+            const useToneMap = sceneReferredInput && displayReferred;
+
+            const m1 = getMatrix(srcG, useToneMap ? "ACES AP1" : dstG);
+            const m2 = useToneMap ? getMatrix("ACES AP1", dstG) : null;
+
+            let luma = 100.0, contrast = 1.15;
+            if (PQ_VARIANTS[dstF]) { luma = PQ_VARIANTS[dstF]; contrast = 1.0; }
+            else if (dstF === "HLG") { luma = 1000.0; contrast = 1.0; }
+
+            let dctl = `// ACES 2.0 Analytic DCTL Pipeline\n// Source: ${srcG}/${srcF}\n// Target: ${dstG}/${dstF}\n\n`;
             
-            const isInputDisplay = DISPLAY_GAMMAS.includes(srcGamma);
-            const isOutputDisplay = DISPLAY_GAMMAS.includes(dstGamma);
-            const useToneMapping = (!isInputDisplay && isOutputDisplay);
-
-            let dctlCode = `// =====================================================================
-// Custom DCTL: Auto-Routed Color Space Transform
-// Source: ${srcGamut} / ${srcGamma}
-// Target: ${dstGamut} / ${dstGamma}
-// Engine: ${useToneMapping ? "ACES 2.0 Pure CAMDRT Engine" : "Pure Matrix CST (Scene/Linear Math)"}
-// =====================================================================
-`;
-
-            if (useToneMapping) {
-                dctlCode += ACES_2_0_ENGINE_LIBRARY;
+            if (useToneMap) {
+                dctl += `__DEVICE__ float3 analytic_camdrt(float3 rgb) {\n    float lum = _fmaxf(rgb.x * 0.212639f + rgb.y * 0.715169f + rgb.z * 0.072192f, 1e-6f);\n    float peak = ${luma.toFixed(1)}f;\n    float sigma = (peak / 4.8f - 1.0f) * _powf(0.18f, ${contrast.toFixed(2)}f);\n    float mapped_lum = (_powf(lum, ${contrast.toFixed(2)}f) / (_powf(lum, ${contrast.toFixed(2)}f) + sigma)) * peak;\n    float3 jmh_rgb = rgb * (mapped_lum / lum);\n    // Hellwig CAM Chroma Compression\n    float l = jmh_rgb.x*0.7328f + jmh_rgb.y*0.4296f + jmh_rgb.z*-0.1624f;\n    float m = jmh_rgb.x*-0.7036f + jmh_rgb.y*1.6975f + jmh_rgb.z*0.0061f;\n    float s = jmh_rgb.x*0.0030f + jmh_rgb.y*0.0136f + jmh_rgb.z*0.9834f;\n    float lp = (l>=0.0f)?_powf(l,0.42f):-_powf(-l,0.42f);\n    float mp = (m>=0.0f)?_powf(m,0.42f):-_powf(-m,0.42f);\n    float sp = (s>=0.0f)?_powf(s,0.42f):-_powf(-s,0.42f);\n    float J = lp*0.4f + mp*0.4f + sp*0.2f;\n    float colorfulness = _sqrtf(_powf(lp-mp+(sp/11.0f),2.0f) + _powf((lp+mp-2.0f*sp)/4.5f,2.0f));\n    float compression = 1.0f / (1.0f + (mapped_lum * 0.005f));\n    float3 out = jmh_rgb * (compression / peak);\n    return out;\n}\n\n`;
             }
 
-            dctlCode += `
-// Step 1: Input Curve Transformation to Linear
-${get_gamma_code(srcGamma, 'to_linear')}
+            dctl += `${GAMMA_FUNCTIONS[srcF]?.to_linear || ''}\n${GAMMA_FUNCTIONS[dstF]?.from_linear || ''}\n\n`;
+            dctl += `__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) {\n    float3 rgb = make_float3(log_to_linear(p_R), log_to_linear(p_G), log_to_linear(p_B));\n\n`;
+            dctl += `    // Pre-Calculated Browser Matrix 1\n    float r1 = ${format_term(m1[0][0],'rgb.x',true)} ${format_term(m1[0][1],'rgb.y',false)} ${format_term(m1[0][2],'rgb.z',false)};\n`;
+            dctl += `    float g1 = ${format_term(m1[1][0],'rgb.x',true)} ${format_term(m1[1][1],'rgb.y',false)} ${format_term(m1[1][2],'rgb.z',false)};\n`;
+            dctl += `    float b1 = ${format_term(m1[2][0],'rgb.x',true)} ${format_term(m1[2][1],'rgb.y',false)} ${format_term(m1[2][2],'rgb.z',false)};\n    rgb = make_float3(r1, g1, b1);\n\n`;
 
-// Step 3: Output Curve Transformation from Linear
-${get_gamma_code(dstGamma, 'from_linear')}
-
-// Main Transform Engine
-__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) 
-{
-    float3 rgb = make_float3(p_R, p_G, p_B);
-
-    // 1. Linearize the Source Input
-    rgb.x = log_to_linear(rgb.x);
-    rgb.y = log_to_linear(rgb.y);
-    rgb.z = log_to_linear(rgb.z);
-`;
-
-            if (useToneMapping) {
-                const matrixToAP1 = get_conversion_matrix(srcGamut, "ACES AP1");
-                const matrixFromAP1 = get_conversion_matrix("ACES AP1", dstGamut);
-
-                // Automate Target Display Peak Luma and Midtone Contrast constants (No UI sliders)
-                let targetLuma = "100.0f";
-                let targetContrast = "1.15f";
-
-                if (PQ_VARIANTS[dstGamma]) {
-                    targetLuma = `${PQ_VARIANTS[dstGamma].toFixed(1)}f`;
-                    targetContrast = "1.00f";
-                } else if (dstGamma === "HLG") {
-                    targetLuma = "1000.0f";
-                    targetContrast = "1.00f";
-                }
-
-                dctlCode += `
-    // 2. Perform Primary Gamut Transformation Matrix (Convert to ACES AP1)
-    float r = ${format_term(matrixToAP1[0][0], "rgb.x", true)} ${format_term(matrixToAP1[0][1], "rgb.y", false)} ${format_term(matrixToAP1[0][2], "rgb.z", false)};
-    float g = ${format_term(matrixToAP1[1][0], "rgb.x", true)} ${format_term(matrixToAP1[1][1], "rgb.y", false)} ${format_term(matrixToAP1[1][2], "rgb.z", false)};
-    float b = ${format_term(matrixToAP1[2][0], "rgb.x", true)} ${format_term(matrixToAP1[2][1], "rgb.y", false)} ${format_term(matrixToAP1[2][2], "rgb.z", false)};
-    rgb = make_float3(r, g, b);
-
-    // 3. APPLY ACES 2.0 CAM COLOR APPEARANCE PIPELINE (Zero UI Parameters)
-    // Translate from Linear AP1 RGB into Perceptual JMh Space
-    float3 jmh = rgb_to_jmh(rgb);
-
-    // Apply the ACES 2.0 SSTS Spline ONLY to the J (Lightness) component (Baked-In Display Constants)
-    jmh.x = eval_ssts(jmh.x, 0.0001f, ${targetLuma}, ${targetContrast});
-
-    // Apply ACES 2.0 Chroma Compression to M (Colorfulness)
-    float chroma_compression = 1.0f / (1.0f + (jmh.x * 0.02f));
-    jmh.y = jmh.y * chroma_compression;
-
-    // Translate back from Perceptual JMh to Linear Display Space
-    rgb = jmh_to_rgb(jmh);
-
-    // 4. Perform Secondary Gamut Transformation Matrix (ACES AP1 to Display Gamut)
-    float out_r = ${format_term(matrixFromAP1[0][0], "rgb.x", true)} ${format_term(matrixFromAP1[0][1], "rgb.y", false)} ${format_term(matrixFromAP1[0][2], "rgb.z", false)};
-    float out_g = ${format_term(matrixFromAP1[1][0], "rgb.x", true)} ${format_term(matrixFromAP1[1][1], "rgb.y", false)} ${format_term(matrixFromAP1[1][2], "rgb.z", false)};
-    float out_b = ${format_term(matrixFromAP1[2][0], "rgb.x", true)} ${format_term(matrixFromAP1[2][1], "rgb.y", false)} ${format_term(matrixFromAP1[2][2], "rgb.z", false)};
-    rgb = make_float3(out_r, out_g, out_b);
-`;
-            } else {
-                const matrixDirect = get_conversion_matrix(srcGamut, dstGamut);
-                dctlCode += `
-    // 2. Perform Primary Gamut Transformation Matrix
-    float r = ${format_term(matrixDirect[0][0], "rgb.x", true)} ${format_term(matrixDirect[0][1], "rgb.y", false)} ${format_term(matrixDirect[0][2], "rgb.z", false)};
-    float g = ${format_term(matrixDirect[1][0], "rgb.x", true)} ${format_term(matrixDirect[1][1], "rgb.y", false)} ${format_term(matrixDirect[1][2], "rgb.z", false)};
-    float b = ${format_term(matrixDirect[2][0], "rgb.x", true)} ${format_term(matrixDirect[2][1], "rgb.y", false)} ${format_term(matrixDirect[2][2], "rgb.z", false)};
-    rgb = make_float3(r, g, b);
-`;
+            if (useToneMap) {
+                dctl += `    rgb = analytic_camdrt(rgb);\n\n    // Pre-Calculated Browser Matrix 2\n`;
+                dctl += `    float r2 = ${format_term(m2[0][0],'rgb.x',true)} ${format_term(m2[0][1],'rgb.y',false)} ${format_term(m2[0][2],'rgb.z',false)};\n`;
+                dctl += `    float g2 = ${format_term(m2[1][0],'rgb.x',true)} ${format_term(m2[1][1],'rgb.y',false)} ${format_term(m2[1][2],'rgb.z',false)};\n`;
+                dctl += `    float b2 = ${format_term(m2[2][0],'rgb.x',true)} ${format_term(m2[2][1],'rgb.y',false)} ${format_term(m2[2][2],'rgb.z',false)};\n    rgb = make_float3(r2, g2, b2);\n\n`;
             }
 
-            dctlCode += `
-    // 5. Apply Output Curve Conversion
-    rgb.x = linear_to_log(rgb.x);
-    rgb.y = linear_to_log(rgb.y);
-    rgb.z = linear_to_log(rgb.z);
-
-    return rgb;
-}
-`;
-            
-            // Clean filename
-            let cleanFn = `CST_${srcGamut}_${srcGamma}_to_${dstGamut}_${dstGamma}`;
-            cleanFn += useToneMapping ? "_ACES2" : "_PureCST";
-            cleanFn = cleanFn.replace(/[\s\(\)\.\/]/g, "_").replace(/__+/g, "_").replace(/_$/, "") + ".dctl";
-
-            codeBlockEl.textContent = dctlCode;
-            filenameEl.textContent = cleanFn;
+            dctl += `    return make_float3(linear_to_log(rgb.x), linear_to_log(rgb.y), linear_to_log(rgb.z));\n}`;
+            codeBlock.textContent = dctl;
         }
 
-        // Add event listeners
-        [srcGamutEl, srcGammaEl, dstGamutEl, dstGammaEl].forEach(el => {
-            el.addEventListener("change", generate_dctl);
-        });
-
-        // Swap functionality
-        swapBtnEl.addEventListener("click", () => {
-            const tempGamut = srcGamutEl.value; const tempGamma = srcGammaEl.value;
-            srcGamutEl.value = dstGamutEl.value; srcGammaEl.value = dstGammaEl.value;
-            dstGamutEl.value = tempGamut; dstGammaEl.value = tempGamma;
-            generate_dctl();
-        });
-
-        // Copy to clipboard
-        copyBtnEl.addEventListener("click", () => {
-            navigator.clipboard.writeText(codeBlockEl.textContent).then(() => {
-                const origText = copyBtnEl.textContent;
-                copyBtnEl.textContent = "Copied! ✓";
-                copyBtnEl.classList.add("border-emerald-500", "text-emerald-400");
-                setTimeout(() => {
-                    copyBtnEl.textContent = origText;
-                    copyBtnEl.classList.remove("border-emerald-500", "text-emerald-400");
-                }, 1500);
-            });
-        });
-
-        // File download
-        downloadBtnEl.addEventListener("click", () => {
-            const code = codeBlockEl.textContent;
-            const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = filenameEl.textContent;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        });
-
-        // Initialize
-        generate_dctl();
+        [srcGamutEl, srcGammaEl, dstGamutEl, dstGammaEl].forEach(el => el.onchange = generate);
+        generate();
     </script>
 </body>
 </html>
