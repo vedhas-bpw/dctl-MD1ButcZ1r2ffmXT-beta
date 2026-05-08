@@ -19,7 +19,7 @@
             <div class="w-3 h-3 rounded-full bg-orange-500 animate-pulse"></div>
             <h1 class="text-xl font-bold tracking-tight text-white">OCIO-DCTL: ACES 2.0</h1>
         </div>
-        <div class="text-xs text-slate-400 font-mono">Analytic CAMDRT Processor v3.0</div>
+        <div class="text-xs text-slate-400 font-mono">Analytic CAMDRT Processor v3.1</div>
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -75,12 +75,18 @@
                     <span id="previewFilename" class="text-xs font-mono text-slate-400 underline decoration-orange-500/50">output.dctl</span>
                     <span class="text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded">C++ Floating Point</span>
                 </div>
-                <pre class="flex-1 p-5 overflow-auto font-mono text-[11px] leading-relaxed text-slate-300 bg-slate-950/80 select-all"><code id="codeBlock">Initializing OCIO math engine...</code></pre>
+                <pre class="flex-1 p-5 overflow-auto font-mono text-[11px] leading-relaxed text-slate-300 bg-slate-950/80 select-all"><code id="codeBlock">Generating code...</code></pre>
             </div>
         </section>
     </main>
 
     <script>
+        // THIS ARRAY WAS MISSING, CAUSING THE CRASH:
+        const DISPLAY_GAMMAS = [
+            "Rec.709", "Rec.709-A", "Gamma 2.2", "Gamma 2.4", "Gamma 2.6", "sRGB", 
+            "ST.2084 (PQ)", "ST.2084 (1000 nits)", "ST.2084 (2000 nits)", "ST.2084 (4000 nits)", "ST.2084 (10000 nits)", "HLG"
+        ];
+
         // FULL COLOR SCIENCE DATABASE
         const PRIMARIES = {
             "ACES AP0": { r: [0.7347, 0.2653], g: [0.0000, 1.0000], b: [0.0001, -0.0770], w: [0.32168, 0.33767] },
@@ -139,7 +145,7 @@
 
         const PQ_VARIANTS = { "ST.2084 (1000 nits)": 1000.0, "ST.2084 (PQ)": 10000.0, "HLG": 1000.0 };
 
-        // MATRIX ENGINE
+        // MATRIX ENGINE (Cleaned up for JS safety)
         const xy2XYZ = ([x, y]) => [x / y, 1.0, (1.0 - x - y) / y];
         const inv3x3 = (m) => {
             const det = m[0][0]*(m[1][1]*m[2][2]-m[2][1]*m[1][2]) - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
@@ -156,14 +162,21 @@
         const get_rgb2xyz = (p) => {
             const [R,G,B,W] = [xy2XYZ(p.r), xy2XYZ(p.g), xy2XYZ(p.b), xy2XYZ(p.w)];
             const M = [[R[0],G[0],B[0]],[R[1],G[1],B[1]],[R[2],G[2],B[2]]];
-            const S = [inv3x3(M)[0][0]*W[0]+inv3x3(M)[0][1]*W[1]+inv3x3(M)[0][2]*W[2], inv3x3(M)[1][0]*W[0]+inv3x3(M)[1][1]*W[1]+inv3x3(M)[1][2]*W[2], inv3x3(M)[2][0]*W[0]+inv3x3(M)[2][1]*W[1]+inv3x3(M)[2][2]*W[2]];
+            const invM = inv3x3(M);
+            const S = [
+                invM[0][0]*W[0] + invM[0][1]*W[1] + invM[0][2]*W[2], 
+                invM[1][0]*W[0] + invM[1][1]*W[1] + invM[1][2]*W[2], 
+                invM[2][0]*W[0] + invM[2][1]*W[1] + invM[2][2]*W[2]
+            ];
             return [[S[0]*R[0],S[1]*G[0],S[2]*B[0]], [S[0]*R[1],S[1]*G[1],S[2]*B[1]], [S[0]*R[2],S[1]*G[2],S[2]*B[2]]];
         };
         const get_cat = (s_w, d_w) => {
             if(s_w[0]===d_w[0] && s_w[1]===d_w[1]) return [[1,0,0],[0,1,0],[0,0,1]];
             const MBF = [[0.8951,0.2664,-0.1614],[-0.7502,1.7135,0.0367],[0.0389,-0.0685,1.0296]];
-            const sL = [MBF[0][0]*xy2XYZ(s_w)[0]+MBF[0][1]*1+MBF[0][2]*xy2XYZ(s_w)[2], MBF[1][0]*xy2XYZ(s_w)[0]+MBF[1][1]*1+MBF[1][2]*xy2XYZ(s_w)[2], MBF[2][0]*xy2XYZ(s_w)[0]+MBF[2][1]*1+MBF[2][2]*xy2XYZ(s_w)[2]];
-            const dL = [MBF[0][0]*xy2XYZ(d_w)[0]+MBF[0][1]*1+MBF[0][2]*xy2XYZ(d_w)[2], MBF[1][0]*xy2XYZ(d_w)[0]+MBF[1][1]*1+MBF[1][2]*xy2XYZ(d_w)[2], MBF[2][0]*xy2XYZ(d_w)[0]+MBF[2][1]*1+MBF[2][2]*xy2XYZ(d_w)[2]];
+            const swXYZ = xy2XYZ(s_w);
+            const dwXYZ = xy2XYZ(d_w);
+            const sL = [MBF[0][0]*swXYZ[0]+MBF[0][1]*swXYZ[1]+MBF[0][2]*swXYZ[2], MBF[1][0]*swXYZ[0]+MBF[1][1]*swXYZ[1]+MBF[1][2]*swXYZ[2], MBF[2][0]*swXYZ[0]+MBF[2][1]*swXYZ[1]+MBF[2][2]*swXYZ[2]];
+            const dL = [MBF[0][0]*dwXYZ[0]+MBF[0][1]*dwXYZ[1]+MBF[0][2]*dwXYZ[2], MBF[1][0]*dwXYZ[0]+MBF[1][1]*dwXYZ[1]+MBF[1][2]*dwXYZ[2], MBF[2][0]*dwXYZ[0]+MBF[2][1]*dwXYZ[1]+MBF[2][2]*dwXYZ[2]];
             return mul3x3(inv3x3(MBF), mul3x3([[dL[0]/sL[0],0,0],[0,dL[1]/sL[1],0],[0,0,dL[2]/sL[2]]], MBF));
         };
 
@@ -195,7 +208,7 @@
 
             const fmt = (v) => `${v>=0?"":"- "}${Math.abs(v).toFixed(9)}f`;
 
-            let dctl = `// ACES 2.0 Analytic OCIO-DCTL\n// Source: ${sG} / ${sF}\n// Target: ${dG} / ${dF}\n\n`;
+            let dctl = `// OCIO-DCTL Analytic Pipeline\n// Source: ${sG} / ${sF}\n// Target: ${dG} / ${dF}\n\n`;
             
             if (useToneMap) {
                 dctl += `__DEVICE__ float eval_ssts(float x) {\n    float mid_gray_scale = (${(luma/4.8-1.0).toFixed(6)}f) * _powf(0.18f, ${contrast.toFixed(2)}f);\n    return (x <= 0.00001f) ? 0.0001f : (_powf(x, ${contrast.toFixed(2)}f) / (_powf(x, ${contrast.toFixed(2)}f) + mid_gray_scale)) * ${luma.toFixed(1)}f;\n}\n\n`;
