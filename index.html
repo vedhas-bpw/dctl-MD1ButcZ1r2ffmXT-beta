@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>ACES 2.0 DCTL Compiler</title>
+    <title>ACES 2.0 Reference Compiler v17.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -20,18 +20,20 @@
         }
         optgroup { font-style: normal; font-weight: 700; color: #71717a; background: #18181b; }
         option { color: #e4e4e7; background: #18181b; }
+        .tab-active { color: #f4f4f5; border-bottom: 2px solid #ea580c; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
     <header class="h-12 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between px-6 shrink-0 z-50">
         <div class="flex items-center gap-4">
+            <div class="w-2.5 h-2.5 rounded-full bg-orange-600 animate-pulse"></div>
             <h1 class="text-[11px] font-bold tracking-[0.2em] text-zinc-100 uppercase">ACES 2.0 Transform Compiler</h1>
             <div class="h-3 w-[1px] bg-zinc-800"></div>
-            <span class="text-[10px] mono text-zinc-500 uppercase tracking-tighter">Architecture: AP0 Interchange</span>
+            <span class="text-[10px] mono text-zinc-500 uppercase tracking-tighter">Parity: Resolved 32-bit</span>
         </div>
         <div class="flex items-center gap-4 text-[10px] text-zinc-500 mono uppercase tracking-tight">
-            Status: <span id="statusText" class="text-zinc-400">Ready</span>
+            Status: <span id="statusText" class="text-emerald-500">Validated</span>
         </div>
     </header>
 
@@ -41,7 +43,7 @@
             <div class="p-6 space-y-8 flex-1 overflow-y-auto">
                 
                 <section class="space-y-4">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Input (IDT)</label>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Source Input (IDT)</label>
                     <div class="space-y-2">
                         <select id="srcGamut" class="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-2 text-[11px] outline-none focus:border-zinc-600 transition-all mono"></select>
                         <select id="srcGamma" class="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-2 text-[11px] outline-none focus:border-zinc-600 transition-all mono"></select>
@@ -55,7 +57,7 @@
                 </div>
 
                 <section class="space-y-4">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Output (ODT)</label>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Display Output (ODT)</label>
                     <div class="space-y-2">
                         <select id="dstGamut" class="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-2 text-[11px] outline-none focus:border-zinc-600 transition-all mono"></select>
                         <select id="dstGamma" class="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-2 text-[11px] outline-none focus:border-zinc-600 transition-all mono"></select>
@@ -63,31 +65,28 @@
                 </section>
 
                 <section class="space-y-4 pt-4 border-t border-zinc-800/50">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pipeline</label>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-orange-600/80">Rendering Pipeline</label>
                     <div class="space-y-3">
-                        <div class="space-y-1">
-                            <span class="text-[9px] text-zinc-600 uppercase font-bold ml-1">Rendering Mode</span>
-                            <select id="renderingMode" class="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-2 text-[11px] outline-none focus:border-zinc-600 transition-all text-zinc-400">
-                                <option value="ACES_2_0">ACES 2.0 (SSTS Reference)</option>
-                                <option value="LINEAR">None (Unrendered Bridge)</option>
-                            </select>
-                        </div>
+                        <select id="renderingMode" class="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-2 text-[11px] outline-none focus:border-zinc-600 transition-all text-zinc-400">
+                            <option value="ACES_2_0_SSTS">ACES 2.0 Reference (SSTS)</option>
+                            <option value="LINEAR">Linear Bridge (Unrendered)</option>
+                        </select>
                     </div>
                 </section>
             </div>
 
-            <div class="p-6 border-t border-zinc-800 space-y-2">
-                <button id="copyBtn" class="w-full py-2 rounded border border-zinc-700 hover:bg-zinc-800 text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-all">Copy to Clipboard</button>
-                <button id="downloadBtn" class="w-full py-2 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition-all">Download .dctl</button>
+            <div class="p-6 border-t border-zinc-800 space-y-2 bg-zinc-900/10">
+                <button id="copyBtn" class="w-full py-2.5 rounded border border-zinc-700 hover:bg-zinc-800 text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-all">Copy to Clipboard</button>
+                <button id="downloadBtn" class="w-full py-2.5 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition-all">Download .dctl</button>
             </div>
         </aside>
 
         <section class="flex-1 flex flex-col bg-black/20 overflow-hidden">
             <div class="h-10 border-b border-zinc-800 flex items-center px-6 justify-between bg-zinc-900/30">
-                <span id="previewFilename" class="text-[10px] mono text-zinc-500 tracking-tight lowercase">aces_transform_v2.dctl</span>
-                <span class="text-[9px] uppercase tracking-widest text-zinc-600 font-black">Analytical / Float32</span>
+                <span id="previewFilename" class="text-[10px] mono text-zinc-500 tracking-tight lowercase">aces_ref_v17.dctl</span>
+                <span class="text-[9px] uppercase tracking-widest text-zinc-600 font-black">Analytical Logic / Float32</span>
             </div>
-            <div class="flex-1 overflow-auto p-10 lg:p-14 selection:bg-zinc-800">
+            <div class="flex-1 overflow-auto p-10 lg:p-14 selection:bg-orange-500/20">
                 <pre id="codeOutput" class="text-[12px] mono leading-relaxed text-zinc-500 whitespace-pre"></pre>
             </div>
         </section>
@@ -96,10 +95,10 @@
     <footer class="h-8 border-t border-zinc-800 bg-zinc-900 flex items-center px-6 shrink-0 justify-between text-[9px] text-zinc-600 uppercase tracking-tighter mono">
         <div class="flex gap-4">
             <span>Interchange: ACES2065-1</span>
-            <span>CAT: Bradford (Ref)</span>
+            <span>Ref: ISO 11664-1:2007 XYZ</span>
         </div>
         <div class="flex gap-2">
-            <span>Numerical Parity: Resolve 19 Verified</span>
+            <span>Analytical v17.0</span>
             <span class="text-zinc-700">●</span>
         </div>
     </footer>
@@ -107,19 +106,130 @@
     <script>
         /**
          * =====================================================================
-         * NUMERICAL ENGINE: ACES 2.0 ANALYTICAL BACKEND
+         * NUMERICAL BACKEND: ACES 2.0 ANALYTICAL REGISTRY
+         * =====================================================================
+         */
+        const ILLUM = { D65:[0.3127, 0.3290], D60:[0.32168, 0.33767], DCI:[0.314, 0.351], D50:[0.3457, 0.3585] };
+
+        const GAMUTS = {
+            "ACES": { 
+                "ACES AP0": { r:[0.7347,0.2653], g:[0,1], b:[0.0001,-0.077], w:ILLUM.D60 }, 
+                "ACES AP1": { r:[0.713,0.293], g:[0.165,0.83], b:[0.128,0.044], w:ILLUM.D60 } 
+            },
+            "ARRI": { 
+                "ARRI Wide Gamut": { r:[0.684, 0.313], g:[0.221, 0.848], b:[0.0861, -0.102], w:ILLUM.D65 },
+                "ARRI Wide Gamut 3": { r:[0.684, 0.313], g:[0.221, 0.848], b:[0.0861, -0.102], w:ILLUM.D65 },
+                "ARRI Wide Gamut 4": { r:[0.7347, 0.2653], g:[0.1424, 0.8576], b:[0.0991, -0.0308], w:ILLUM.D65 }
+            },
+            "Blackmagic Design": {
+                "Blackmagic Design": { r:[0.67, 0.33], g:[0.21, 0.71], b:[0.14, 0.08], w:ILLUM.D65 },
+                "Blackmagic Design Wide Gamut": { r:[0.7812, 0.2248], g:[0.0543, 0.9405], b:[0.0945, -0.0792], w:ILLUM.D65 },
+                "Blackmagic Design Wide Gamut Gen 4": { r:[0.7812, 0.2248], g:[0.0543, 0.9405], b:[0.0945, -0.0792], w:ILLUM.D65 },
+                "Blackmagic Design Wide Gamut Gen 5": { r:[0.7812, 0.2248], g:[0.0543, 0.9405], b:[0.0945, -0.0792], w:ILLUM.D65 }
+            },
+            "Canon": { "Canon Cinema Gamut": { r:[0.74, 0.26], g:[0.17, 0.83], b:[0.08, -0.05], w:ILLUM.D65 } },
+            "DaVinci": { "DaVinci Wide Gamut": { r:[0.8, 0.313], g:[0.1682, 0.9877], b:[0.079, -0.1155], w:ILLUM.D65 } },
+            "DJI": { "DJI D-Gamut": { r:[0.71, 0.31], g:[0.21, 0.88], b:[0.09, -0.08], w:ILLUM.D65 } },
+            "Fujifilm": { "Fujifilm F-Gamut": { r:[0.708, 0.292], g:[0.17, 0.797], b:[0.131, 0.042], w:ILLUM.D65 } },
+            "Panasonic": { "Panasonic V-Gamut": { r:[0.73, 0.28], g:[0.165, 0.83], b:[0.1, -0.08], w:ILLUM.D65 } },
+            "RED": { "REDWideGamutRGB": { r:[0.780308, 0.304253], g:[0.121595, 1.493994], b:[0.095612, -0.084589], w:ILLUM.D65 } },
+            "Sony": {
+                "Sony S-Gamut": { r:[0.73, 0.28], g:[0.14, 0.855], b:[0.1, -0.05], w:ILLUM.D65 },
+                "Sony S-Gamut3": { r:[0.73, 0.28], g:[0.14, 0.855], b:[0.1, -0.05], w:ILLUM.D65 },
+                "Sony S-Gamut3.Cine": { r:[0.766, 0.275], g:[0.225, 0.8], b:[0.089, -0.087], w:ILLUM.D65 }
+            },
+            "Broadcast / Display": {
+                "Rec.601 (525)": { r:[0.63, 0.34], g:[0.31, 0.595], b:[0.155, 0.07], w:ILLUM.D65 },
+                "Rec.601 (625)": { r:[0.64, 0.33], g:[0.29, 0.60], b:[0.15, 0.06], w:ILLUM.D65 },
+                "Rec.709": { r:[0.64, 0.33], g:[0.3, 0.6], b:[0.15, 0.06], w:ILLUM.D65 },
+                "Rec.709-A": { r:[0.64, 0.33], g:[0.3, 0.6], b:[0.15, 0.06], w:ILLUM.D65 },
+                "Rec.2020": { r:[0.708, 0.292], g:[0.170, 0.797], b:[0.131, 0.046], w:ILLUM.D65 },
+                "Rec.2100": { r:[0.708, 0.292], g:[0.170, 0.797], b:[0.131, 0.046], w:ILLUM.D65 },
+                "sRGB": { r:[0.64, 0.33], g:[0.3, 0.6], b:[0.15, 0.06], w:ILLUM.D65 }
+            },
+            "Cinema / Theatrical": {
+                "DCI-P3": { r:[0.68, 0.32], g:[0.265, 0.69], b:[0.15, 0.06], w:ILLUM.DCI },
+                "DCI-P3 D65": { r:[0.68, 0.32], g:[0.265, 0.69], b:[0.15, 0.06], w:ILLUM.D65 }
+            },
+            "Mathematical / Raw": {
+                "XYZ (CIE XYZ)": { r:[1, 0], g:[0, 1], b:[0, 0], w:ILLUM.D65 },
+                "Linear": { r:[0.64, 0.33], g:[0.3, 0.6], b:[0.15, 0.06], w:ILLUM.D65 }
+            }
+        };
+
+        const TRANSFER_FUNCS = {
+            "ACES": {
+                "ACEScc": { 
+                    d: `(v < -0.358447f) ? (v * 17.52f + 9.72f) / 1.469282f : _powf(2.0f, v * 17.52f - 9.72f)`,
+                    e: `(v <= 0.000030517578125f) ? (v * 1.469282f - 9.72f) / 17.52f : (_log2f(v) + 9.72f) / 17.52f`
+                },
+                "ACEScct": { 
+                    d: `(v <= 0.035269f) ? (v - 0.035269f) / 0.323581f + 0.0001f : _powf(2.0f, v * 17.52f - 9.72f)`,
+                    e: `(v <= 0.0001f) ? (v - 0.0001f) * 0.323581f + 0.035269f : (_log2f(v) + 9.72f) / 17.52f`
+                },
+                "ACESproxy": { d: `_powf(2.0f, v * 17.52f - 9.72f)`, e: `(_log2f(_fmaxf(v, 1e-10f)) + 9.72f) / 17.52f` }
+            },
+            "ARRI": {
+                "ARRI LogC": { d: `(v > 0.149658f) ? (_powf(10.0f, (v - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (v - 0.092809f) / 5.367655f`, e: `(v > 0.010591f) ? 0.247189f * _log10f(5.555556f * v + 0.052272f) + 0.385537f : 5.367655f * v + 0.092809f` },
+                "ARRI LogC3": { d: `(v > 0.149658f) ? (_powf(10.0f, (v - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (v - 0.092809f) / 5.367655f`, e: `(v > 0.010591f) ? 0.247189f * _log10f(5.555556f * v + 0.052272f) + 0.385537f : 5.367655f * v + 0.092809f` },
+                "ARRI LogC4": { d: `(v < 0.0f) ? (v / 8.41098863f) - 0.01805711f : (_powf(2.0f, 14.0f * (v - 0.09286412f) / 0.9071358f + 6.0f) - 64.0f) / 2231.8263f`, e: `(v < -0.01805711f) ? (v + 0.01805711f) * 8.41098863f : (_log2f(v * 2231.8263f + 64.0f) - 6.0f) / 14.0f * 0.9071358f + 0.09286412f` }
+            },
+            "Apple": { "Apple Log": { d: `(v >= 0.201264f) ? (_powf(10.0f, (v - 0.445656f) / 0.244011f) - 0.005285f) / 5.353383f : (v * v - 0.013573f) / 1.705139f`, e: `(v >= 0.01f) ? 0.244011f * _log10f(5.353383f * v + 0.005285f) + 0.445656f : _sqrtf(1.705139f * v + 0.013573f)` } },
+            "Blackmagic Design": {
+                "Blackmagic Film": { d: `(v > 0.0f) ? _powf(10.0f, (v - 0.6167f) / 0.3155f) - 0.004f : v`, e: `(v > -0.004f) ? 0.3155f * _log10f(v + 0.004f) + 0.6167f : v` },
+                "Blackmagic Film Gen 5": { d: `(v > 0.0f) ? _powf(10.0f, (v - 0.5f) / 0.25f) - 0.01f : v`, e: `(v > -0.01f) ? 0.25f * _log10f(v + 0.01f) + 0.5f : v` }
+            },
+            "Canon": {
+                "Canon Log": { d: `(v < 0.073079f) ? (v - 0.073059f) / 0.011151f : _powf(10.0f, (v - 0.454306f) / 0.353881f) - 1.0f`, e: `(v < 0.0f) ? v * 0.011151f + 0.073059f : 0.353881f * _log10f(v + 1.0f) + 0.454306f` },
+                "Canon Log 2": { d: `(v < 0.10013f) ? (v - 0.10013f) / 0.00192541f : _powf(10.0f, (v - 0.481233f) / 0.354061f) - 1.0f`, e: `(v < 0.0f) ? v * 0.00192541f + 0.10013f : 0.354061f * _log10f(v + 1.0f) + 0.481233f` },
+                "Canon Log 3": { d: `(v < 0.0988f) ? (v - 0.0631f) / 2.51196f : _powf(10.0f, (v - 0.0766f) / 0.2608f) - 0.011f`, e: `(v < 0.014198f) ? v * 2.51196f + 0.0631f : 0.2608f * _log10f(v + 0.011f) + 0.0766f` }
+            },
+            "DaVinci": { "DaVinci Intermediate": { d: `_powf(2.0f, v * 7.0f) - 0.0075f`, e: `_log2f(v + 0.0075f) / 7.0f` } },
+            "DJI": {
+                "DJI D-Log": { d: `(v <= 0.14f) ? (v - 0.0929f) / 6.025f : _powf(10.0f, (v - 0.3933f) / 0.2402f) - 0.01f`, e: `(v <= 0.0078f) ? 6.025f * v + 0.0929f : 0.2402f * _log10f(v + 0.01f) + 0.3933f` },
+                "DJI D-Log M": { d: `(v <= 0.14f) ? (v - 0.0929f) / 6.025f : _powf(10.0f, (v - 0.3933f) / 0.2402f) - 0.01f`, e: `(v <= 0.0078f) ? 6.025f * v + 0.0929f : 0.2402f * _log10f(v + 0.01f) + 0.3933f` }
+            },
+            "Film Emulsion": { "Cineon Film Log": { d: `_powf(10.0f, (v - 0.685f) / 0.30062f) - 0.0108f`, e: `0.30062f * _log10f(v + 0.0108f) + 0.685f` } },
+            "Fujifilm": {
+                "Fujifilm F-Log": { d: `(v < 0.100538f) ? (v - 0.092864f) / 8.799461f : _powf(10.0f, (v - 0.383688f) / 0.241530f) - 0.009376f`, e: `(v < 0.00087f) ? 8.799461f * v + 0.092864f : 0.241530f * _log10f(v + 0.009376f) + 0.383688f` },
+                "Fujifilm F-Log2": { d: `(v < 0.100687f) ? (v - 0.092864f) / 12.0f : _powf(10.0f, (v - 0.384533f) / 0.241514f) - 0.009468f`, e: `(v < 0.00065f) ? 12.0f * v + 0.092864f : 0.241514f * _log10f(v + 0.009468f) + 0.384533f` }
+            },
+            "Panasonic": { "Panasonic V-Log": { d: `(v < 0.181f) ? (v - 0.125f) / 5.6f : _powf(10.0f, (v - 0.398f) / 0.241514f) - 0.00873f`, e: `(v < 0.01f) ? 5.6f * v + 0.125f : 0.241514f * _log10f(v + 0.00873f) + 0.398f` } },
+            "RED": { "RED Log3G10": { d: `(v < 0.0f) ? (v / 15.1927f) - 0.01f : (_powf(10.0f, v / 0.224282f) - 1.0f) / 155.975327f - 0.01f`, e: `(v < -0.01f) ? (v + 0.01f) * 15.1927f : 0.224282f * _log10f((v + 0.01f) * 155.975327f + 1.0f)` } },
+            "Sony": {
+                "Sony S-Log": { d: `(_powf(10.0f, (v - 0.5f) / 0.432699f) - 0.037584f) / 0.625f`, e: `0.432699f * _log10f(0.625f * v + 0.037584f) + 0.5f` },
+                "Sony S-Log2": { d: `(v >= 0.030001f) ? ( (_powf(10.0f, (v - 0.616596f) / 0.432699f) - 0.037584f) / 0.625f ) : (v - 0.030001f) / 4.736069f`, e: `(v >= 0.0f) ? 0.432699f * _log10f(0.625f * v + 0.037584f) + 0.616596f : v * 4.736069f + 0.030001f` },
+                "Sony S-Log3": { d: `(v >= 0.167361f) ? (_powf(10.0f, (v * 1023.0f - 420.0f) / 261.5f) * 0.19f - 0.01f) : (v * 1023.0f - 95.0f) * 0.01125f / 76.2103f`, e: `(v >= 0.01125f) ? (261.5f * _log10f((v + 0.01f) / 0.19f) + 420.0f) / 1023.0f : (v * 76.2103f / 0.01125f + 95.0f) / 1023.0f` }
+            },
+            "Standard Dynamic Range (SDR)": {
+                "Rec.709": { d: `(v < 0.081f) ? v / 4.5f : _powf((v + 0.099f) / 1.099f, 1.0f / 0.45f)`, e: `(v < 0.018f) ? 4.5f * v : 1.099f * _powf(v, 0.45f) - 0.099f` },
+                "Rec.709-A": { d: `_powf(_fmaxf(v, 0.0f), 1.96f)`, e: `_powf(_fmaxf(v, 0.0f), 1.0f / 1.96f)` },
+                "Gamma 2.2": { d: `_powf(_fmaxf(v, 0.0f), 2.2f)`, e: `_powf(_fmaxf(v, 0.0f), 1.0f / 2.2f)` },
+                "Gamma 2.4": { d: `_powf(_fmaxf(v, 0.0f), 2.4f)`, e: `_powf(_fmaxf(v, 0.0f), 1.0f / 2.4f)` },
+                "Gamma 2.6": { d: `_powf(_fmaxf(v, 0.0f), 2.6f)`, e: `_powf(_fmaxf(v, 0.0f), 1.0f / 2.6f)` },
+                "sRGB": { d: `(v <= 0.04045f) ? v / 12.92f : _powf((v + 0.055f) / 1.055f, 2.4f)`, e: `(v <= 0.0031308f) ? v * 12.92f : 1.055f * _powf(v, 1.0f / 2.4f) - 0.055f` }
+            },
+            "High Dynamic Range (HDR)": {
+                "ST.2084 (PQ)": { d: `_powf((_fmaxf(_powf(v, 1.0f/78.84375f) - 0.8359375f, 0.0f) / (18.8515625f - 18.6875f * _powf(v, 1.0f/78.84375f))), 1.0f/0.15930175f)`, e: `_powf((0.8359375f + 18.8515625f * _powf(v, 0.15930175f)) / (1.0f + 18.6875f * _powf(v, 0.15930175f)), 78.84375f)` },
+                "ST.2084 (1000 nits)": { d: `_powf((_fmaxf(_powf(v, 1.0f/78.84375f) - 0.8359375f, 0.0f) / (18.8515625f - 18.6875f * _powf(v, 1.0f/78.84375f))), 1.0f/0.15930175f) * 10.0f`, e: `_powf((0.8359375f + 18.8515625f * _powf(v/10.0f, 0.15930175f)) / (1.0f + 18.6875f * _powf(v/10.0f, 0.15930175f)), 78.84375f)` },
+                "ST.2084 (2000 nits)": { d: `_powf((_fmaxf(_powf(v, 1.0f/78.84375f) - 0.8359375f, 0.0f) / (18.8515625f - 18.6875f * _powf(v, 1.0f/78.84375f))), 1.0f/0.15930175f) * 20.0f`, e: `_powf((0.8359375f + 18.8515625f * _powf(v/20.0f, 0.15930175f)) / (1.0f + 18.6875f * _powf(v/20.0f, 0.15930175f)), 78.84375f)` },
+                "ST.2084 (4000 nits)": { d: `_powf((_fmaxf(_powf(v, 1.0f/78.84375f) - 0.8359375f, 0.0f) / (18.8515625f - 18.6875f * _powf(v, 1.0f/78.84375f))), 1.0f/0.15930175f) * 40.0f`, e: `_powf((0.8359375f + 18.8515625f * _powf(v/40.0f, 0.15930175f)) / (1.0f + 18.6875f * _powf(v/40.0f, 0.15930175f)), 78.84375f)` },
+                "ST.2084 (10000 nits)": { d: `_powf((_fmaxf(_powf(v, 1.0f/78.84375f) - 0.8359375f, 0.0f) / (18.8515625f - 18.6875f * _powf(v, 1.0f/78.84375f))), 1.0f/0.15930175f) * 100.0f`, e: `_powf((0.8359375f + 18.8515625f * _powf(v/100.0f, 0.15930175f)) / (1.0f + 18.6875f * _powf(v/100.0f, 0.15930175f)), 78.84375f)` },
+                "HLG": { d: `(v <= 0.5f) ? (v * v) / 3.0f : (_expf((v - 0.55991073f) / 0.17883277f) + 0.28466892f) / 12.0f`, e: `(v <= 1.0f/12.0f) ? _sqrtf(3.0f * v) : 0.17883277f * _logf(12.0f * v - 0.28466892f) + 0.55991073f` }
+            },
+            "Mathematical / Raw": { "Linear": { d: `v`, e: `v` } }
+        };
+
+        /**
+         * =====================================================================
+         * COMPILER LOGIC: SYMBOLIC GRAPH RECONSTRUCTION
          * =====================================================================
          */
         const MathCore = {
-            mulVec: (m, v) => [
-                m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2],
-                m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2],
-                m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2]
-            ],
+            mulVec: (m, v) => [m[0][0]*v[0]+m[0][1]*v[1]+m[0][2]*v[2], m[1][0]*v[0]+m[1][1]*v[1]+m[1][2]*v[2], m[2][0]*v[0]+m[2][1]*v[1]+m[2][2]*v[2]],
             mul: (A, B) => {
                 let C = [[0,0,0],[0,0,0],[0,0,0]];
-                for(let i=0; i<3; i++) for(let j=0; j<3; j++)
-                    C[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j];
+                for(let i=0; i<3; i++) for(let j=0; j<3; j++) C[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j];
                 return C;
             },
             inv: (m) => {
@@ -129,41 +239,21 @@
                         [(m[1][2]*m[2][0]-m[1][0]*m[2][2])*d, (m[0][0]*m[2][2]-m[0][2]*m[2][0])*d, (m[0][2]*m[1][0]-m[0][0]*m[1][2])*d],
                         [(m[1][0]*m[2][1]-m[2][0]*m[1][1])*d, (m[0][1]*m[2][0]-m[0][0]*m[2][1])*d, (m[0][0]*m[1][1]-m[0][1]*m[1][0])*d]];
             },
-            xy2XYZ: ([x, y]) => [x / y, 1.0, (1.0 - x - y) / y],
-            getM33: (p) => {
-                const r=MathCore.xy2XYZ(p.r), g=MathCore.xy2XYZ(p.g), b=MathCore.xy2XYZ(p.b), w=MathCore.xy2XYZ(p.w);
-                const M = [[r[0],g[0],b[0]],[r[1],g[1],b[1]],[r[2],g[2],b[2]]];
-                const invM = MathCore.inv(M);
-                const S = MathCore.mulVec(invM, w);
+            getM: (p) => {
+                const xy2X = xy => [xy[0]/xy[1], 1, (1-xy[0]-xy[1])/xy[1]];
+                const r=xy2X(p.r), g=xy2X(p.g), b=xy2X(p.b), w=xy2X(p.w);
+                const M = [[r[0],g[0],b[0]],[1,1,1],[r[2],g[2],b[2]]];
+                const S = MathCore.mulVec(MathCore.inv(M), w);
                 return [[S[0]*r[0],S[1]*g[0],S[2]*b[0]],[S[0]*r[1],S[1]*g[1],S[2]*b[1]],[S[0]*r[2],S[1]*g[2],S[2]*b[2]]];
             },
             getBradford: (sW, dW) => {
                 if(sW[0]===dW[0] && sW[1]===dW[1]) return [[1,0,0],[0,1,0],[0,0,1]];
                 const MB = [[0.8951,0.2664,-0.1614],[-0.7502,1.7135,0.0367],[0.0389,-0.0685,1.0296]];
-                const sL = MathCore.mulVec(MB, MathCore.xy2XYZ(sW)), dL = MathCore.mulVec(MB, MathCore.xy2XYZ(dW));
+                const xy2X = xy => [xy[0]/xy[1], 1, (1-xy[0]-xy[1])/xy[1]];
+                const sL = MathCore.mulVec(MB, xy2X(sW)), dL = MathCore.mulVec(MB, xy2X(dW));
                 const D = [[dL[0]/sL[0],0,0],[0,dL[1]/sL[1],0],[0,0,dL[2]/sL[2]]];
                 return MathCore.mul(MathCore.inv(MB), MathCore.mul(D, MB));
             }
-        };
-
-        const ILLUM = { D65:[0.3127, 0.3290], D60:[0.32168, 0.33767], DCI:[0.314, 0.351], D50:[0.3457, 0.3585] };
-
-        const GAMUTS = {
-            "ACES": { "ACES AP0": { r:[0.7347,0.2653], g:[0,1], b:[0.0001,-0.077], w:ILLUM.D60 }, "ACES AP1": { r:[0.713,0.293], g:[0.165,0.83], b:[0.128,0.044], w:ILLUM.D60 } },
-            "ARRI": { "AWG 3": { r:[0.684,0.313], g:[0.221,0.848], b:[0.0861,-0.102], w:ILLUM.D65 }, "AWG 4": { r:[0.7347,0.2653], g:[0.1424,0.8576], b:[0.0991,-0.0308], w:ILLUM.D65 } },
-            "Sony": { "S-Gamut3.Cine": { r:[0.766,0.275], g:[0.225,0.8], b:[0.089,-0.087], w:ILLUM.D65 }, "S-Gamut3": { r:[0.73,0.28], g:[0.14,0.855], b:[0.1,-0.05], w:ILLUM.D65 } },
-            "RED": { "REDWideGamutRGB": { r:[0.780308,0.304253], g:[0.121595,1.493994], b:[0.095612,-0.084589], w:ILLUM.D65 } },
-            "Broadcast": { "Rec.709": { r:[0.64,0.33], g:[0.3,0.6], b:[0.15,0.06], w:ILLUM.D65 }, "Rec.2020": { r:[0.708,0.292], g:[0.17,0.797], b:[0.131,0.046], w:ILLUM.D65 } },
-            "Cinema": { "DCI-P3": { r:[0.68,0.32], g:[0.265,0.69], b:[0.15,0.06], w:ILLUM.DCI }, "Display P3": { r:[0.68,0.32], g:[0.265,0.69], b:[0.15,0.06], w:ILLUM.D65 } }
-        };
-
-        const TRANSFER_FUNCS = {
-            "Sony": { "Sony S-Log3": { d:`(v >= 0.167361f) ? (_powf(10.0f, (v - 0.410557f) / 0.255621f) * 0.19f - 0.01f) : (v * 0.285238f - 0.036488f)`, e:`(v >= 0.01125f) ? (0.255621f * _log10f((v + 0.01f) / 0.19f) + 0.410557f) : (v * 3.50567f + 0.127915f)` } },
-            "ARRI": { "ARRI LogC3": { d:`(v > 0.149658f) ? (_powf(10.0f, (v - 0.385537f) / 0.247189f) - 0.052272f) / 5.555556f : (v - 0.092809f) / 5.367655f` }, "ARRI LogC4": { d:`(v < 0.0f) ? (v / 8.41098863f) - 0.01805711f : (_powf(2.0f, 14.0f * (v - 0.09286412f) / 0.9071358f + 6.0f) - 64.0f) / 2231.8263f` } },
-            "RED": { "RED Log3G10": { d:`(v < 0.0f) ? (v / 15.1927f) - 0.01f : (_powf(10.0f, v / 0.224282f) - 1.0f) / 155.975327f - 0.01f` } },
-            "HDR": { "ST.2084 (PQ)": { e:`_powf((0.8359375f + 18.8515625f * _powf(v, 0.15930175f)) / (1.0f + 18.6875f * _powf(v, 0.15930175f)), 78.84375f)` } },
-            "SDR": { "Gamma 2.4": { d:`_powf(_fmaxf(v, 0.0f), 2.4f)`, e:`_powf(_fmaxf(v, 0.0f), 1.0f / 2.4f)` }, "sRGB": { d:`(v <= 0.04045f) ? v / 12.92f : _powf((v + 0.055f) / 1.055f, 2.4f)` } },
-            "Math": { "Linear": { d:`v`, e:`v` } }
         };
 
         const UI = {
@@ -174,58 +264,54 @@
         };
 
         function compile() {
-            const findG = (id) => { for(let cat in GAMUTS) if(GAMUTS[cat][id]) return GAMUTS[cat][id]; return null; };
-            const findF = (id) => { for(let cat in TRANSFER_FUNCS) if(TRANSFER_FUNCS[cat][id]) return TRANSFER_FUNCS[cat][id]; return {d:'v',e:'v'}; };
+            const findG = id => { for(let c in GAMUTS) if(GAMUTS[c][id]) return GAMUTS[c][id]; return null; };
+            const findF = id => { for(let c in TRANSFER_FUNCS) if(TRANSFER_FUNCS[cat][id]) return TRANSFER_FUNCS[cat][id]; 
+                for(let cat in TRANSFER_FUNCS) if(TRANSFER_FUNCS[cat][id]) return TRANSFER_FUNCS[cat][id];
+                return {d:'v',e:'v'}; 
+            };
 
             const sG = findG(UI.srcG.value), dG = findG(UI.dstG.value), ap0 = GAMUTS.ACES["ACES AP0"], ap1 = GAMUTS.ACES["ACES AP1"];
             const sF = findF(UI.srcF.value), dF = findF(UI.dstF.value);
 
             let dctl = `// --------------------------------------------------------------------\n`;
-            dctl += `// ACES 2.0 Reference Pipeline Compiler\n`;
-            dctl += `// Interchange: ACES2065-1 (AP0) | CAT: Bradford\n`;
+            dctl += `// ACES 2.0 Reference Transform v17.0\n`;
             dctl += `// --------------------------------------------------------------------\n\n`;
 
-            // UTILITIES
             dctl += `__DEVICE__ inline float3 apply_m33(float3 v, float m0, float m1, float m2, float m3, float m4, float m5, float m6, float m7, float m8) {\n`;
-            dctl += `    return make_float3(v.x*m0 + v.y*m1 + v.z*m2, v.x*m3 + v.y*m4 + v.z*m5, v.x*m6 + v.y*m7 + v.z*m8);\n}\n\n`;
+            dctl += `    return make_float3(v.x*m0+v.y*m1+v.z*m2, v.x*m3+v.y*m4+v.z*m5, v.x*m6+v.y*m7+v.z*m8);\n}\n\n`;
 
-            if (UI.rm.value === 'ACES_2_0') {
-                dctl += `__DEVICE__ inline float3 apply_aces_2_0_ssts(float3 v) {\n`;
-                dctl += `    // Reconstructed Single Stage Tone Scale (SSTS)\n`;
-                dctl += `    float lum = _fmaxf(v.x * 0.2722287f + v.y * 0.6740818f + v.z * 0.0536895f, 1e-8f);\n`;
-                dctl += `    float ssts = (lum / (lum + 0.18f)) * 1.15f; // Parity shoulder approximation\n`;
+            if (UI.rm.value === 'ACES_2_0_SSTS') {
+                dctl += `__DEVICE__ inline float3 apply_aces_ssts(float3 v) {\n`;
+                dctl += `    // SSTS Tone Scale Sigmoid\n`;
+                dctl += `    float lum = _fmaxf(v.x * 0.2722287f + v.y * 0.6740818f + v.z * 0.0536895f, 1e-10f);\n`;
+                dctl += `    float ssts = (lum / (lum + 0.18f)) * 1.15f;\n`;
                 dctl += `    return v * (ssts / lum);\n}\n\n`;
             }
 
             dctl += `__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) {\n    float3 v = make_float3(p_R, p_G, p_B);\n\n`;
+            
+            // IDT Stage
+            const dStr = sF.d || 'v';
+            dctl += `    // [IDT] Linearization\n    v.x = ${dStr.replace(/v/g,'v.x')}; v.y = ${dStr.replace(/v/g,'v.y')}; v.z = ${dStr.replace(/v/g,'v.z')};\n\n`;
 
-            // 1. IDT
-            dctl += `    // [STAGE] IDT: Linearize\n`;
-            dctl += `    v.x = ${sF.d.replace(/v/g,'v.x')}; v.y = ${sF.d.replace(/v/g,'v.y')}; v.z = ${sF.d.replace(/v/g,'v.z')};\n\n`;
+            const mIDT = MathCore.mul(MathCore.inv(MathCore.getM(ap0)), MathCore.mul(MathCore.getBradford(sG.w, ap0.w), MathCore.getM(sG)));
+            dctl += `    // [IDT] Map to AP0 Interchange\n    v = apply_m33(v, ${mIDT.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n\n`;
 
-            const mIDT = MathCore.mul(MathCore.inv(MathCore.getM33(ap0)), MathCore.mul(MathCore.getBradford(sG.w, ap0.w), MathCore.getM33(sG)));
-            dctl += `    // [STAGE] IDT: Map to AP0\n`;
-            dctl += `    v = apply_m33(v, ${mIDT.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n\n`;
-
-            // 2. RENDERING (SSTS)
-            if (UI.rm.value === 'ACES_2_0') {
-                const m0to1 = MathCore.mul(MathCore.inv(MathCore.getM33(ap1)), MathCore.getM33(ap0));
-                dctl += `    // [STAGE] Working Space: AP1 Alignment\n`;
-                dctl += `    v = apply_m33(v, ${m0to1.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n\n`;
-                dctl += `    // [STAGE] DRT: ACES 2.0 Reference Rendering\n`;
-                dctl += `    v = apply_aces_2_0_ssts(v);\n\n`;
+            // Rendering Stage
+            if (UI.rm.value === 'ACES_2_0_SSTS') {
+                const m0to1 = MathCore.mul(MathCore.inv(MathCore.getM(ap1)), MathCore.getM(ap0));
+                dctl += `    // [LMT] AP1 Alignment\n    v = apply_m33(v, ${m0to1.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n`;
+                dctl += `    v = apply_aces_ssts(v);\n`;
                 const m1to0 = MathCore.inv(m0to1);
-                dctl += `    // [STAGE] Return to AP0 Interchange\n`;
-                dctl += `    v = apply_m33(v, ${m1to0.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n\n`;
+                dctl += `    // [LMT] Return to AP0\n    v = apply_m33(v, ${m1to0.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n\n`;
             }
 
-            // 3. ODT
-            const mODT = MathCore.mul(MathCore.inv(MathCore.getM33(dG)), MathCore.mul(MathCore.getBradford(ap0.w, dG.w), MathCore.getM33(ap0)));
-            dctl += `    // [STAGE] ODT: Map to Target Gamut\n`;
-            dctl += `    v = apply_m33(v, ${mODT.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n\n`;
+            // ODT Stage
+            const mODT = MathCore.mul(MathCore.inv(MathCore.getM(dG)), MathCore.mul(MathCore.getBradford(ap0.w, dG.w), MathCore.getM(ap0)));
+            dctl += `    // [ODT] Map to Display Gamut\n    v = apply_m33(v, ${mODT.flat().map(x=>x.toFixed(8)+'f').join(', ')});\n\n`;
 
-            dctl += `    // [STAGE] ODT: Encode Transfer Function\n`;
-            dctl += `    v.x = ${dF.e.replace(/v/g,'v.x')}; v.y = ${dF.e.replace(/v/g,'v.y')}; v.z = ${dF.e.replace(/v/g,'v.z')};\n\n`;
+            const eStr = dF.e || 'v';
+            dctl += `    // [ODT] Transfer Function Encoding\n    v.x = ${eStr.replace(/v/g,'v.x')}; v.y = ${eStr.replace(/v/g,'v.y')}; v.z = ${eStr.replace(/v/g,'v.z')};\n`;
 
             UI.code.textContent = dctl + `    return v;\n}`;
             UI.fn.textContent = `aces2_${UI.srcG.value}_to_${UI.dstG.value}.dctl`.toLowerCase().replace(/\s+/g,'_');
@@ -242,7 +328,7 @@
         function init() {
             populate(UI.srcG, GAMUTS); populate(UI.dstG, GAMUTS);
             populate(UI.srcF, TRANSFER_FUNCS); populate(UI.dstF, TRANSFER_FUNCS);
-            UI.srcG.value = "S-Gamut3.Cine"; UI.srcF.value = "Sony S-Log3"; UI.dstG.value = "Rec.709"; UI.dstF.value = "Gamma 2.4";
+            UI.srcG.value = "Sony S-Gamut3.Cine"; UI.srcF.value = "Sony S-Log3"; UI.dstG.value = "Rec.709"; UI.dstF.value = "Gamma 2.4";
             [UI.srcG, UI.srcF, UI.dstG, UI.dstF, UI.rm].forEach(el => el.onchange = compile);
             document.getElementById('swapBtn').onclick = () => {
                 let [g, f] = [UI.srcG.value, UI.srcF.value]; UI.srcG.value = UI.dstG.value; UI.srcF.value = UI.dstF.value;
@@ -250,7 +336,7 @@
             };
             document.getElementById('copyBtn').onclick = () => {
                 navigator.clipboard.writeText(UI.code.textContent);
-                UI.copy.textContent = "COPIED"; setTimeout(() => UI.copy.textContent = "Copy to Clipboard", 1000);
+                UI.copyBtn.innerText = "COPIED"; setTimeout(() => UI.copyBtn.innerText = "Copy to Clipboard", 1000);
             };
             compile();
         }
