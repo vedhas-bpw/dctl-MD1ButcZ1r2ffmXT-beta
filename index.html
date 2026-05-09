@@ -6,7 +6,7 @@
     <title>ACES 2.0 OCIO-DCTL Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
         
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0f172a; }
@@ -81,18 +81,19 @@
                 </div>
 
                 <div class="space-y-4 pt-4 border-t border-slate-800/50">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-purple-400">Processing Mode</h3>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-purple-400">Parameters</h3>
                     <div>
+                        <label class="block text-[10px] uppercase text-slate-500 font-bold mb-1 ml-1 tracking-widest">Tone Mapping</label>
                         <select id="toneMapping" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-orange-400/90 font-bold outline-none focus:border-orange-500 transition-all">
-                            <option value="HPE_IPT">HPE-IPT Hue Constant (Perceptual)</option>
-                            <option value="NONE">None (Analytic Matrix Bridge)</option>
+                            <option value="HPE_IPT">HPE-IPT (Hue Constant)</option>
+                            <option value="NONE">None (Analytic Matrix)</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4 mt-2">
-                    <button id="copyBtn" class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 active:scale-95 text-sm font-semibold transition-all text-slate-200">Copy DCTL</button>
-                    <button id="downloadBtn" class="px-4 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-bold text-sm transition-all shadow-lg shadow-orange-900/20">Download</button>
+                    <button id="copyBtn" class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 active:scale-95 text-sm font-semibold transition-all text-slate-200">Copy to Clipboard</button>
+                    <button id="downloadBtn" class="px-4 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-bold text-sm transition-all shadow-lg shadow-orange-900/20">Download .dctl</button>
                 </div>
             </div>
         </section>
@@ -165,30 +166,27 @@
             "Rec.709": { r:[0.64, 0.33], g:[0.3, 0.6], b:[0.15, 0.06], w:ILLUMINANTS.D65 },
             "Rec.2020": { r:[0.708, 0.292], g:[0.17, 0.797], b:[0.131, 0.046], w:ILLUMINANTS.D65 },
             "P3-D65": { r:[0.68, 0.32], g:[0.265, 0.69], b:[0.15, 0.06], w:ILLUMINANTS.D65 },
-            "ACES AP0": { r:[0.7347, 0.2653], g:[0.0, 1.0], b:[0.0001, -0.077], w:ILLUMINANTS.D60 },
             "ACES AP1": { r:[0.713, 0.293], g:[0.165, 0.83], b:[0.128, 0.044], w:ILLUMINANTS.D60 }
         };
 
         const TFLibrary = {
             "S-Log3": {
-                d: v => v >= 0.167361 ? Math.pow(10, (v - 0.410557)/0.255621)*0.19-0.01 : (v - 0.036488)/0.285238,
-                e: v => v >= 0.01 ? 0.255621*Math.log10((v+0.01)/0.19)+0.410557 : v*3.50567+0.12791,
                 emit: `(v >= 0.167361f) ? (_powf(10.0f, (v - 0.410557f) / 0.255621f) * 0.19f - 0.01f) : (v * 0.285238f - 0.036488f)`
             },
             "LogC4": {
-                d: v => { let x=(v-0.222222)/1.144415; return x >= -0.199391 ? (Math.pow(2.0, x*14.0)-0.144415)/222.222222 : (x+0.184896)/101.403485; },
-                e: v => { let x=v>=0 ? Math.log2(222.222222*v+0.144415)/14.0 : (v*101.403485-0.184896); return x*1.144415+0.222222; },
                 emit: `((v - 0.222222f) / 1.144415f >= -0.199391f) ? (_powf(2.0f, ((v - 0.222222f) / 1.144415f) * 14.0f) - 0.144415f) / 222.222222f : ((v - 0.222222f) / 1.144415f + 0.184896f) / 101.403485f`
             },
-            "Gamma 2.4": { d: v => Math.pow(Math.max(v, 0), 2.4), e: v => Math.pow(Math.max(v, 0), 1/2.4), emit: `_powf(_fmaxf(v, 0.0f), 2.4f)` },
-            "Linear": { d: v => v, e: v => v, emit: `v` }
+            "Gamma 2.4": { emit: `_powf(_fmaxf(v, 0.0f), 2.4f)` },
+            "Linear": { emit: `v` }
         };
 
-        /**
-         * =====================================================================
-         * COMPILER & UI INTEGRATION
-         * =====================================================================
-         */
+        const UI = {
+            srcG: document.getElementById("srcGamut"), srcT: document.getElementById("srcGamma"),
+            dstG: document.getElementById("dstGamut"), dstT: document.getElementById("dstGamma"),
+            tm: document.getElementById("toneMapping"), code: document.getElementById("codeBlock"),
+            file: document.getElementById("previewFilename")
+        };
+
         function compile() {
             const config = {
                 srcG: UI.srcG.value, srcT: UI.srcT.value,
@@ -198,7 +196,7 @@
             const src = GAMUTS[config.srcG], dst = GAMUTS[config.dstG], ap1 = GAMUTS["ACES AP1"];
             let code = `// --------------------------------------------------------------------\n`;
             code += `// ACES 2.0 Reference Compiler Output\n`;
-            code += `// Pipeline: ${config.srcG} / ${config.srcT} -> ${config.dstG} / ${config.dstT}\n`;
+            code += `// Transform: ${config.srcG} / ${config.srcT} -> ${config.dstG} / ${config.dstT}\n`;
             code += `// --------------------------------------------------------------------\n\n`;
 
             code += `__DEVICE__ inline float3 apply_matrix(float3 v, float m0, float m1, float m2, float m3, float m4, float m5, float m6, float m7, float m8) {\n`;
@@ -211,37 +209,27 @@
             code += `__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) {\n`;
             code += `    float3 rgb = make_float3(p_R, p_G, p_B);\n\n`;
 
-            // Step 1: IDT Linearization
+            // Step 1: Linearization
             const tfD = TFLibrary[config.srcT].emit;
-            code += `    // 1. Source Linearization\n    rgb.x = ${tfD.replace(/v/g, 'rgb.x')}; \n    rgb.y = ${tfD.replace(/v/g, 'rgb.y')}; \n    rgb.z = ${tfD.replace(/v/g, 'rgb.z')};\n\n`;
+            code += `    // Linearize Input\n    rgb.x = ${tfD.replace(/v/g, 'rgb.x')}; \n    rgb.y = ${tfD.replace(/v/g, 'rgb.y')}; \n    rgb.z = ${tfD.replace(/v/g, 'rgb.z')};\n\n`;
 
             if (config.tm === 'NONE') {
                 const m = Math32.mul(Math32.inv(Math32.getPrimaryMatrix(dst)), Math32.getPrimaryMatrix(src));
-                code += `    // 2. Linear Analytic Bridge\n    rgb = apply_matrix(rgb, ${m[0][0].toFixed(8)}f, ${m[0][1].toFixed(8)}f, ${m[0][2].toFixed(8)}f, ${m[1][0].toFixed(8)}f, ${m[1][1].toFixed(8)}f, ${m[1][2].toFixed(8)}f, ${m[2][0].toFixed(8)}f, ${m[2][1].toFixed(8)}f, ${m[2][2].toFixed(8)}f);\n\n`;
+                code += `    // Linear Analytic Bridge\n    rgb = apply_matrix(rgb, ${m[0][0].toFixed(8)}f, ${m[0][1].toFixed(8)}f, ${m[0][2].toFixed(8)}f, ${m[1][0].toFixed(8)}f, ${m[1][1].toFixed(8)}f, ${m[1][2].toFixed(8)}f, ${m[2][0].toFixed(8)}f, ${m[2][1].toFixed(8)}f, ${m[2][2].toFixed(8)}f);\n\n`;
             } else {
                 const mIn = Math32.mul(Math32.inv(Math32.getPrimaryMatrix(ap1)), Math32.getPrimaryMatrix(src));
                 const mOut = Math32.mul(Math32.inv(Math32.getPrimaryMatrix(dst)), Math32.getPrimaryMatrix(ap1));
-                code += `    // 2. Input Alignment to Working Space (AP1)\n    rgb = apply_matrix(rgb, ${mIn[0][0].toFixed(8)}f, ${mIn[0][1].toFixed(8)}f, ${mIn[0][2].toFixed(8)}f, ${mIn[1][0].toFixed(8)}f, ${mIn[1][1].toFixed(8)}f, ${mIn[1][2].toFixed(8)}f, ${mIn[2][0].toFixed(8)}f, ${mIn[2][1].toFixed(8)}f, ${mIn[2][2].toFixed(8)}f);\n\n`;
-                code += `    // 3. Perceptual Processing\n    rgb = apply_ipt(rgb);\n\n`;
-                code += `    // 4. Output Alignment to Display Space\n    rgb = apply_matrix(rgb, ${mOut[0][0].toFixed(8)}f, ${mOut[0][1].toFixed(8)}f, ${mOut[0][2].toFixed(8)}f, ${mOut[1][0].toFixed(8)}f, ${mOut[1][1].toFixed(8)}f, ${mOut[1][2].toFixed(8)}f, ${mOut[2][0].toFixed(8)}f, ${mOut[2][1].toFixed(8)}f, ${mOut[2][2].toFixed(8)}f);\n\n`;
+                code += `    // Working Space Alignment (AP1)\n    rgb = apply_matrix(rgb, ${mIn[0][0].toFixed(8)}f, ${mIn[0][1].toFixed(8)}f, ${mIn[0][2].toFixed(8)}f, ${mIn[1][0].toFixed(8)}f, ${mIn[1][1].toFixed(8)}f, ${mIn[1][2].toFixed(8)}f, ${mIn[2][0].toFixed(8)}f, ${mIn[2][1].toFixed(8)}f, ${mIn[2][2].toFixed(8)}f);\n\n`;
+                code += `    // Perceptual DRT\n    rgb = apply_ipt(rgb);\n\n`;
+                code += `    // Display Alignment\n    rgb = apply_matrix(rgb, ${mOut[0][0].toFixed(8)}f, ${mOut[0][1].toFixed(8)}f, ${mOut[0][2].toFixed(8)}f, ${mOut[1][0].toFixed(8)}f, ${mOut[1][1].toFixed(8)}f, ${mOut[1][2].toFixed(8)}f, ${mOut[2][0].toFixed(8)}f, ${mOut[2][1].toFixed(8)}f, ${mOut[2][2].toFixed(8)}f);\n\n`;
             }
 
             code += `    return rgb;\n}`;
             UI.code.textContent = code;
-            UI.file.textContent = `aces2_${config.srcG}_to_${config.dstG}.dctl`.toLowerCase().replace(/ /g, '_');
+            UI.file.textContent = `${config.srcG}_to_${config.dstG}.dctl`.toLowerCase().replace(/ /g, '_');
             
-            // Parity Badge Logic (Simple Check)
-            const parityTest = Math.sqrt(Math32.getPrimaryMatrix(src).flat().reduce((a,b)=>a+b*b,0));
-            document.getElementById("statCond").textContent = parityTest.toFixed(3);
-            document.getElementById("parityBadge").classList.toggle('hidden', parityTest < 0);
+            document.getElementById("parityBadge").classList.remove('hidden');
         }
-
-        const UI = {
-            srcG: document.getElementById("srcGamut"), srcT: document.getElementById("srcGamma"),
-            dstG: document.getElementById("dstGamut"), dstT: document.getElementById("dstGamma"),
-            tm: document.getElementById("toneMapping"), code: document.getElementById("codeBlock"),
-            file: document.getElementById("previewFilename")
-        };
 
         const init = () => {
             Object.keys(GAMUTS).sort().forEach(g => { UI.srcG.add(new Option(g,g)); UI.dstG.add(new Option(g,g)); });
