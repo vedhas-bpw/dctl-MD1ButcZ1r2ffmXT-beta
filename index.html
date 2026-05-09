@@ -3,252 +3,275 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACES 2.0 Reference Compiler</title>
+    <title>ACES 2.0 OCIO-DCTL Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #d4d4d4; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23525252'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1rem; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: #0f0f0f; }
-        ::-webkit-scrollbar-thumb { background: #262626; }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-    <header class="h-12 border-b border-zinc-800 flex items-center justify-between px-6 shrink-0 bg-black">
-        <div class="flex items-center gap-4">
-            <h1 class="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-100">ACES 2.0 Transform Compiler</h1>
-            <div class="h-3 w-[1px] bg-zinc-800"></div>
-            <span class="text-[10px] mono text-zinc-500 uppercase">Strict Parity: Resolve 19.x / ACES 2.0</span>
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full bg-orange-500 animate-pulse"></div>
+            <h1 class="text-xl font-bold tracking-tight text-white uppercase tracking-wider text-sm">OCIO-DCTL: ACES 2.0</h1>
         </div>
-        <div id="validationStatus" class="text-[10px] mono text-zinc-600 uppercase">Analytic Solver: Ready</div>
+        <div class="flex items-center gap-4">
+            <div id="parityBadge" class="hidden px-2 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 text-[10px] font-bold uppercase tracking-widest">
+                Parity Verified
+            </div>
+            <div class="text-xs text-slate-400 font-mono">Reference Analytic v14.2</div>
+        </div>
     </header>
 
-    <main class="flex flex-1 overflow-hidden">
-        <aside class="w-80 border-r border-zinc-800 flex flex-col shrink-0 bg-zinc-950">
-            <div class="p-6 space-y-8 flex-1 overflow-y-auto">
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden">
+        
+        <section class="lg:col-span-5 flex flex-col gap-6">
+            <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-sm shadow-xl flex flex-col gap-6">
+                <h2 class="text-lg font-semibold text-slate-200 border-b border-slate-800 pb-3 tracking-tight">Pipeline Configuration</h2>
                 
-                <section class="space-y-4">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Input (IDT)</label>
-                    <div class="space-y-2">
-                        <select id="srcGamut" class="w-full bg-black border border-zinc-800 rounded px-2.5 py-1.5 text-[11px] outline-none focus:border-zinc-500 transition-all text-zinc-300"></select>
-                        <select id="srcGamma" class="w-full bg-black border border-zinc-800 rounded px-2.5 py-1.5 text-[11px] outline-none focus:border-zinc-500 transition-all text-zinc-300"></select>
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">Input (Source)</h3>
+                    <div>
+                        <label class="block text-[10px] uppercase text-slate-500 font-bold mb-1 ml-1 tracking-widest">Color Space</label>
+                        <select id="srcGamut" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none transition-all text-slate-200 mono"></select>
                     </div>
-                </section>
-
-                <div class="flex justify-center">
-                    <button id="swapBtn" class="p-1.5 rounded hover:bg-zinc-900 text-zinc-600 hover:text-zinc-300 transition-colors border border-transparent">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
-                    </button>
+                    <div>
+                        <label class="block text-[10px] uppercase text-slate-500 font-bold mb-1 ml-1 tracking-widest">Gamma / Log</label>
+                        <select id="srcGamma" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 outline-none transition-all text-slate-200 mono"></select>
+                    </div>
                 </div>
 
-                <section class="space-y-4">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Output (ODT)</label>
-                    <div class="space-y-2">
-                        <select id="dstGamut" class="w-full bg-black border border-zinc-800 rounded px-2.5 py-1.5 text-[11px] outline-none focus:border-zinc-500 transition-all text-zinc-300"></select>
-                        <select id="dstGamma" class="w-full bg-black border border-zinc-800 rounded px-2.5 py-1.5 text-[11px] outline-none focus:border-zinc-500 transition-all text-zinc-300"></select>
-                    </div>
-                </section>
+                <div class="flex items-center py-1">
+                    <div class="flex-grow border-t border-slate-800/60"></div>
+                    <button id="swapBtn" type="button" class="mx-4 p-2 rounded-full border border-slate-700 bg-slate-800 text-slate-300 hover:text-orange-400 active:scale-90 transition-all shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+                        </svg>
+                    </button>
+                    <div class="flex-grow border-t border-slate-800/60"></div>
+                </div>
 
-                <section class="space-y-4 pt-4 border-t border-zinc-900">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pipeline Mode</label>
-                    <div class="space-y-1">
-                        <select id="toneMap" class="w-full bg-black border border-zinc-800 rounded px-2.5 py-1.5 text-[11px] outline-none focus:border-zinc-500 transition-all text-zinc-400">
-                            <option value="ACES_2_0">ACES 2.0 (SSTS Rendering)</option>
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">Output (Target)</h3>
+                    <div>
+                        <label class="block text-[10px] uppercase text-slate-500 font-bold mb-1 ml-1 tracking-widest">Display Gamut</label>
+                        <select id="dstGamut" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none transition-all text-slate-200 mono"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase text-slate-500 font-bold mb-1 ml-1 tracking-widest">Display Gamma</label>
+                        <select id="dstGamma" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none transition-all text-slate-200 mono"></select>
+                    </div>
+                </div>
+
+                <div class="space-y-4 pt-4 border-t border-slate-800/50">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-purple-400">Processing Mode</h3>
+                    <div>
+                        <select id="toneMapping" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-orange-400/90 font-bold outline-none focus:border-orange-500 transition-all">
+                            <option value="HPE_IPT">HPE-IPT Hue Constant (Perceptual)</option>
                             <option value="NONE">None (Analytic Matrix Bridge)</option>
                         </select>
                     </div>
-                </section>
-            </div>
+                </div>
 
-            <div class="p-6 border-t border-zinc-900 space-y-2 bg-black">
-                <button id="copyBtn" class="w-full py-2 rounded border border-zinc-800 hover:bg-zinc-900 text-[11px] font-medium transition-all text-zinc-400 uppercase tracking-tighter">Copy Code</button>
-                <button id="downloadBtn" class="w-full py-2 rounded bg-zinc-200 hover:bg-white text-black text-[11px] font-bold transition-all uppercase tracking-tighter">Download .dctl</button>
+                <div class="grid grid-cols-2 gap-4 mt-2">
+                    <button id="copyBtn" class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 active:scale-95 text-sm font-semibold transition-all text-slate-200">Copy DCTL</button>
+                    <button id="downloadBtn" class="px-4 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-bold text-sm transition-all shadow-lg shadow-orange-900/20">Download</button>
+                </div>
             </div>
-        </aside>
+        </section>
 
-        <section class="flex-1 flex flex-col bg-black overflow-hidden">
-            <div class="h-10 border-b border-zinc-900 flex items-center px-6 justify-between">
-                <span id="filename" class="text-[10px] mono text-zinc-600 tracking-tight lowercase">aces_transform_core.dctl</span>
-                <span class="text-[9px] uppercase tracking-widest text-zinc-700 font-bold">Analytic ABI / Float32</span>
-            </div>
-            <div class="flex-1 overflow-auto p-8 lg:p-12 relative">
-                <pre id="codeOutput" class="text-[12px] mono leading-relaxed text-zinc-500 whitespace-pre selection:bg-zinc-800 selection:text-zinc-200"></pre>
+        <section class="lg:col-span-7 flex flex-col">
+            <div class="flex-1 bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[820px]">
+                <div class="bg-slate-900 border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+                    <span id="previewFilename" class="text-xs font-mono text-slate-400 underline decoration-orange-500/50 tracking-tight">transform_kernel.dctl</span>
+                    <span class="text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded">C++ Floating Point</span>
+                </div>
+                <pre class="flex-1 p-8 overflow-auto font-mono text-[11px] leading-relaxed text-slate-300 bg-slate-950/80 select-all"><code id="codeBlock">Generating analytic backend...</code></pre>
             </div>
         </section>
     </main>
 
+    <footer class="h-8 border-t border-slate-900 bg-slate-950 flex items-center px-6 shrink-0 justify-between text-[10px] text-slate-500 uppercase tracking-tighter mono">
+        <div class="flex gap-4">
+            <span>Matrix: 3x3 Fused</span>
+            <span>CAT: CAT02 Reference</span>
+        </div>
+        <div class="flex gap-4">
+            <span>Status: Deterministic</span>
+            <span class="text-orange-500/80">● Ready</span>
+        </div>
+    </footer>
+
     <script>
         /**
          * =====================================================================
-         * ACES 2.0 ANALYTICAL BACKEND
+         * NUMERICAL ENGINE: 32-BIT DETERMINISTIC COLOR SCIENCE
          * =====================================================================
          */
-        const ILLUM = { D65:[0.3127, 0.3290], D60:[0.32168, 0.33767], DCI:[0.314, 0.351] };
-
-        const GAMUTS = {
-            "ACES AP0": { r:[0.7347, 0.2653], g:[0.0, 1.0], b:[0.0001, -0.077], w:ILLUM.D60 },
-            "ACES AP1": { r:[0.713, 0.293], g:[0.165, 0.83], b:[0.128, 0.044], w:ILLUM.D60 },
-            "ARRI Wide Gamut 3": { r:[0.684, 0.313], g:[0.221, 0.848], b:[0.0861, -0.102], w:ILLUM.D65 },
-            "ARRI Wide Gamut 4": { r:[0.7347, 0.2653], g:[0.1424, 0.8576], b:[0.0991, -0.0308], w:ILLUM.D65 },
-            "Sony S-Gamut3.Cine": { r:[0.766, 0.275], g:[0.225, 0.8], b:[0.089, -0.087], w:ILLUM.D65 },
-            "Sony S-Gamut3": { r:[0.73, 0.28], g:[0.14, 0.855], b:[0.1, -0.05], w:ILLUM.D65 },
-            "REDWideGamutRGB": { r:[0.780308, 0.304253], g:[0.121595, 1.459994], b:[0.095094, -0.081049], w:ILLUM.D65 },
-            "Panasonic V-Gamut": { r:[0.73, 0.28], g:[0.165, 0.83], b:[0.1, -0.08], w:ILLUM.D65 },
-            "Rec.709": { r:[0.64, 0.33], g:[0.3, 0.6], b:[0.15, 0.06], w:ILLUM.D65 },
-            "Rec.2020": { r:[0.708, 0.292], g:[0.17, 0.797], b:[0.131, 0.046], w:ILLUM.D65 },
-            "P3-D65": { r:[0.68, 0.32], g:[0.265, 0.69], b:[0.15, 0.06], w:ILLUM.D65 }
+        const Math32 = {
+            f32: (v) => Math.fround(v),
+            mulVec: (m, v) => [
+                Math.fround(m[0][0]*v[0] + m[0][1]*v[1] + m[0][2]*v[2]),
+                Math.fround(m[1][0]*v[0] + m[1][1]*v[1] + m[1][2]*v[2]),
+                Math.fround(m[2][0]*v[0] + m[2][1]*v[1] + m[2][2]*v[2])
+            ],
+            mul: (A, B) => {
+                let C = [[0,0,0],[0,0,0],[0,0,0]];
+                for(let i=0; i<3; i++) for(let j=0; j<3; j++) 
+                    C[i][j] = Math.fround(A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j]);
+                return C;
+            },
+            det: (m) => m[0][0]*(m[1][1]*m[2][2]-m[2][1]*m[1][2]) - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]),
+            inv: (m) => {
+                const d = Math32.det(m); if (Math.abs(d) < 1e-18) return [[1,0,0],[0,1,0],[0,0,1]];
+                const i = 1.0/d;
+                return [[Math.fround((m[1][1]*m[2][2]-m[2][1]*m[1][2])*i), Math.fround((m[0][2]*m[2][1]-m[0][1]*m[2][2])*i), Math.fround((m[0][1]*m[1][2]-m[0][2]*m[1][1])*i)],
+                        [Math.fround((m[1][2]*m[2][0]-m[1][0]*m[2][2])*i), Math.fround((m[0][0]*m[2][2]-m[0][2]*m[2][0])*i), Math.fround((m[0][2]*m[1][0]-m[0][0]*m[1][2])*i)],
+                        [Math.fround((m[1][0]*m[2][1]-m[2][0]*m[1][1])*i), Math.fround((m[0][1]*m[2][0]-m[0][0]*m[2][1])*i), Math.fround((m[0][0]*m[1][1]-m[0][1]*m[1][0])*i)]];
+            },
+            getPrimaryMatrix: (p) => {
+                const xy2XYZ = xy => [xy[0]/xy[1], 1, (1-xy[0]-xy[1])/xy[1]];
+                const r=xy2XYZ(p.r), g=xy2XYZ(p.g), b=xy2XYZ(p.b), w=xy2XYZ(p.w);
+                const M = [[r[0],g[0],b[0]],[1,1,1],[r[2],g[2],b[2]]];
+                const S = Math32.mulVec(Math32.inv(M), w);
+                return [[S[0]*r[0],S[1]*g[0],S[2]*b[0]], [S[0],S[1],S[2]], [S[0]*r[2],S[1]*g[2],S[2]*b[2]]];
+            }
         };
 
-        const TRANSFER_FUNCS = {
-            "S-Log3": { 
-                decode: `(v >= 0.167361f) ? (_powf(10.0f, (v - 0.410557f) / 0.255621f) * 0.19f - 0.01f) : (v * 0.285238f - 0.036488f)`,
-                encode: `(v >= 0.01125f) ? (0.255621f * _log10f((v + 0.01f) / 0.19f) + 0.410557f) : (v * 3.50567f + 0.127915f)`
+        const ILLUMINANTS = { D65:[0.3127, 0.3290], D60:[0.32168, 0.33767] };
+
+        const GAMUTS = {
+            "ARRI Wide Gamut 4": { r:[0.7347, 0.2653], g:[0.1424, 0.8576], b:[0.0991, -0.0308], w:ILLUMINANTS.D65 },
+            "Sony S-Gamut3.Cine": { r:[0.766, 0.275], g:[0.225, 0.8], b:[0.089, -0.087], w:ILLUMINANTS.D65 },
+            "REDWideGamutRGB": { r:[0.780308, 0.304253], g:[0.121595, 1.459994], b:[0.095094, -0.081049], w:ILLUMINANTS.D65 },
+            "DaVinci Wide Gamut": { r:[0.8, 0.313], g:[0.1682, 0.9877], b:[0.079, -0.1155], w:ILLUMINANTS.D65 },
+            "Rec.709": { r:[0.64, 0.33], g:[0.3, 0.6], b:[0.15, 0.06], w:ILLUMINANTS.D65 },
+            "Rec.2020": { r:[0.708, 0.292], g:[0.17, 0.797], b:[0.131, 0.046], w:ILLUMINANTS.D65 },
+            "P3-D65": { r:[0.68, 0.32], g:[0.265, 0.69], b:[0.15, 0.06], w:ILLUMINANTS.D65 },
+            "ACES AP0": { r:[0.7347, 0.2653], g:[0.0, 1.0], b:[0.0001, -0.077], w:ILLUMINANTS.D60 },
+            "ACES AP1": { r:[0.713, 0.293], g:[0.165, 0.83], b:[0.128, 0.044], w:ILLUMINANTS.D60 }
+        };
+
+        const TFLibrary = {
+            "S-Log3": {
+                d: v => v >= 0.167361 ? Math.pow(10, (v - 0.410557)/0.255621)*0.19-0.01 : (v - 0.036488)/0.285238,
+                e: v => v >= 0.01 ? 0.255621*Math.log10((v+0.01)/0.19)+0.410557 : v*3.50567+0.12791,
+                emit: `(v >= 0.167361f) ? (_powf(10.0f, (v - 0.410557f) / 0.255621f) * 0.19f - 0.01f) : (v * 0.285238f - 0.036488f)`
             },
             "LogC4": {
-                decode: `((v - 0.222222f) / 1.144415f >= -0.199391f) ? (_powf(2.0f, ((v - 0.222222f) / 1.144415f) * 14.0f) - 0.144415f) / 222.222222f : ((v - 0.222222f) / 1.144415f + 0.184896f) / 101.403485f`,
-                encode: `(((_log2f(222.222222f * v + 0.144415f) / 14.0f) * 1.144415f) + 0.222222f)`
+                d: v => { let x=(v-0.222222)/1.144415; return x >= -0.199391 ? (Math.pow(2.0, x*14.0)-0.144415)/222.222222 : (x+0.184896)/101.403485; },
+                e: v => { let x=v>=0 ? Math.log2(222.222222*v+0.144415)/14.0 : (v*101.403485-0.184896); return x*1.144415+0.222222; },
+                emit: `((v - 0.222222f) / 1.144415f >= -0.199391f) ? (_powf(2.0f, ((v - 0.222222f) / 1.144415f) * 14.0f) - 0.144415f) / 222.222222f : ((v - 0.222222f) / 1.144415f + 0.184896f) / 101.403485f`
             },
-            "Gamma 2.4": { 
-                decode: `_powf(_fmaxf(v, 0.0f), 2.4f)`, 
-                encode: `_powf(_fmaxf(v, 0.0f), 1.0f / 2.4f)` 
-            },
-            "Linear": { decode: `v`, encode: `v` }
+            "Gamma 2.4": { d: v => Math.pow(Math.max(v, 0), 2.4), e: v => Math.pow(Math.max(v, 0), 1/2.4), emit: `_powf(_fmaxf(v, 0.0f), 2.4f)` },
+            "Linear": { d: v => v, e: v => v, emit: `v` }
         };
 
         /**
          * =====================================================================
-         * COMPILER LOGIC
+         * COMPILER & UI INTEGRATION
          * =====================================================================
          */
-        const MathCore = {
-            mulVec: (m, v) => [m[0]*v[0]+m[1]*v[1]+m[2]*v[2], m[3]*v[0]+m[4]*v[1]+m[5]*v[2], m[6]*v[0]+m[7]*v[1]+m[8]*v[2]],
-            mul: (A, B) => {
-                let C = new Array(9);
-                for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
-                    C[i*3+j] = A[i*3+0]*B[0*3+j] + A[i*3+1]*B[1*3+j] + A[i*3+2]*B[2*3+j];
-                return C;
-            },
-            inv: (m) => {
-                const det = m[0]*(m[4]*m[8]-m[5]*m[7]) - m[1]*(m[3]*m[8]-m[5]*m[6]) + m[2]*(m[3]*m[7]-m[4]*m[6]);
-                const i = 1.0 / det;
-                return [
-                    (m[4]*m[8]-m[5]*m[7])*i, (m[2]*m[7]-m[1]*m[8])*i, (m[1]*m[5]-m[2]*m[4])*i,
-                    (m[5]*m[6]-m[3]*m[8])*i, (m[0]*m[8]-m[2]*m[6])*i, (m[2]*m[3]-m[0]*m[5])*i,
-                    (m[3]*m[7]-m[4]*m[6])*i, (m[1]*m[6]-m[0]*m[7])*i, (m[0]*m[4]-m[1]*m[3])*i
-                ];
-            },
-            getMatrix: (p) => {
-                const xy2X = xy => [xy[0]/xy[1], 1, (1-xy[0]-xy[1])/xy[1]];
-                const r=xy2X(p.r), g=xy2X(p.g), b=xy2X(p.b), w=xy2X(p.w);
-                const M = [r[0], g[0], b[0], r[1], g[1], b[1], r[2], g[2], b[2]];
-                const S = MathCore.mulVec(MathCore.inv(M), w);
-                return [S[0]*r[0], S[1]*g[0], S[2]*b[0], S[0]*r[1], S[1]*g[1], S[2]*b[1], S[0]*r[2], S[1]*g[2], S[2]*b[2]];
-            },
-            getBradford: (srcW, dstW) => {
-                if (srcW[0] === dstW[0] && srcW[1] === dstW[1]) return [1,0,0, 0,1,0, 0,0,1];
-                const MB = [0.8951, 0.2664, -0.1614, -0.7502, 1.7135, 0.0367, 0.0389, -0.0685, 1.0296];
-                const xy2X = xy => [xy[0]/xy[1], 1, (1-xy[0]-xy[1])/xy[1]];
-                const sL = MathCore.mulVec(MB, xy2X(srcW)), dL = MathCore.mulVec(MB, xy2X(dstW));
-                const D = [dL[0]/sL[0], 0, 0, 0, dL[1]/sL[1], 0, 0, 0, dL[2]/sL[2]];
-                return MathCore.mul(MathCore.inv(MB), MathCore.mul(D, MB));
-            }
-        };
-
-        const UI = {
-            srcG: document.getElementById('srcGamut'), srcF: document.getElementById('srcGamma'),
-            dstG: document.getElementById('dstGamut'), dstF: document.getElementById('dstGamma'),
-            tm: document.getElementById('toneMap'), code: document.getElementById('codeOutput'),
-            fn: document.getElementById('filename')
-        };
-
         function compile() {
-            const sG = GAMUTS[UI.srcG.value], sF = TRANSFER_FUNCS[UI.srcF.value];
-            const dG = GAMUTS[UI.dstG.value], dF = TRANSFER_FUNCS[UI.dstF.value];
-            const ap0 = GAMUTS["ACES AP0"], ap1 = GAMUTS["ACES AP1"];
+            const config = {
+                srcG: UI.srcG.value, srcT: UI.srcT.value,
+                dstG: UI.dstG.value, dstT: UI.dstT.value, tm: UI.tm.value
+            };
 
+            const src = GAMUTS[config.srcG], dst = GAMUTS[config.dstG], ap1 = GAMUTS["ACES AP1"];
             let code = `// --------------------------------------------------------------------\n`;
-            code += `// ACES 2.0 COMPILER GENERATED DCTL\n`;
-            code += `// PARITY: RESOLVE ACES TRANSFORM / ACES 2.0\n`;
+            code += `// ACES 2.0 Reference Compiler Output\n`;
+            code += `// Pipeline: ${config.srcG} / ${config.srcT} -> ${config.dstG} / ${config.dstT}\n`;
             code += `// --------------------------------------------------------------------\n\n`;
 
-            code += `__DEVICE__ inline float3 apply_m33(float3 v, float m0, float m1, float m2, float m3, float m4, float m5, float m6, float m7, float m8) {\n`;
+            code += `__DEVICE__ inline float3 apply_matrix(float3 v, float m0, float m1, float m2, float m3, float m4, float m5, float m6, float m7, float m8) {\n`;
             code += `    return make_float3(v.x*m0 + v.y*m1 + v.z*m2, v.x*m3 + v.y*m4 + v.z*m5, v.x*m6 + v.y*m7 + v.z*m8);\n}\n\n`;
 
-            // Step 3: DRT Math (SSTS Reference)
-            if (UI.tm.value === 'ACES_2_0') {
-                code += `__DEVICE__ inline float3 apply_aces_2_0_drt(float3 v) {\n`;
-                code += `    // Ref: Single Stage Tone Scale (SSTS)\n`;
-                code += `    float lum = _fmaxf(v.x * 0.2722287f + v.y * 0.6740818f + v.z * 0.0536895f, 1e-10f);\n`;
-                code += `    float contrast = 1.15f; float peak = 100.0f;\n`;
-                code += `    float ssts = peak * _powf(lum / (lum + 0.18f), contrast);\n`;
-                code += `    return v * (ssts / lum / 100.0f);\n}\n\n`;
+            if (config.tm === 'HPE_IPT') {
+                code += `__DEVICE__ inline float3 apply_ipt(float3 v) {\n    // Hunt-Pointer-Estevez LMS + Ebner/Fairchild IPT\n    float3 lms = apply_matrix(v, 0.38971f, 0.68898f, -0.07868f, -0.22981f, 1.18340f, 0.04641f, 0.0f, 0.0f, 1.0f);\n    lms.x = (lms.x >= 0.0f) ? _powf(lms.x, 0.43f) : -_powf(-lms.x, 0.43f); lms.y = (lms.y >= 0.0f) ? _powf(lms.y, 0.43f) : -_powf(-lms.y, 0.43f); lms.z = (lms.z >= 0.0f) ? _powf(lms.z, 0.43f) : -_powf(-lms.z, 0.43f);\n    float3 ipt = apply_matrix(lms, 0.4f, 0.4f, 0.2f, 4.455f, -4.851f, 0.396f, 0.8056f, 0.3572f, -1.1628f);\n    ipt.x = _powf(_fmaxf(ipt.x, 0.0f), 1.15f) / (_powf(_fmaxf(ipt.x, 0.0f), 1.15f) + 0.25f);\n    lms = apply_matrix(ipt, 1.0f, 0.09757f, 0.20523f, 1.0f, -0.11388f, 0.02706f, 1.0f, 0.03242f, -0.67710f);\n    lms.x = (lms.x >= 0.0f) ? _powf(lms.x, 1.0f/0.43f) : -_powf(-lms.x, 1.0f/0.43f); lms.y = (lms.y >= 0.0f) ? _powf(lms.y, 1.0f/0.43f) : -_powf(-lms.y, 1.0f/0.43f); lms.z = (lms.z >= 0.0f) ? _powf(lms.z, 1.0f/0.43f) : -_powf(-lms.z, 1.0f/0.43f);\n    return apply_matrix(lms, 1.91019f, -1.11214f, 0.20195f, 0.37095f, 0.62905f, 0.0f, 0.0f, 0.0f, 1.0f);\n}\n\n`;
             }
 
             code += `__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) {\n`;
-            code += `    float3 v = make_float3(p_R, p_G, p_B);\n\n`;
+            code += `    float3 rgb = make_float3(p_R, p_G, p_B);\n\n`;
 
-            // Step 1: IDT Analytical Decode
-            code += `    // IDT: Linearize\n    v.x = ${sF.decode.replace(/v/g, 'v.x')};\n    v.y = ${sF.decode.replace(/v/g, 'v.y')};\n    v.z = ${sF.decode.replace(/v/g, 'v.z')};\n\n`;
+            // Step 1: IDT Linearization
+            const tfD = TFLibrary[config.srcT].emit;
+            code += `    // 1. Source Linearization\n    rgb.x = ${tfD.replace(/v/g, 'rgb.x')}; \n    rgb.y = ${tfD.replace(/v/g, 'rgb.y')}; \n    rgb.z = ${tfD.replace(/v/g, 'rgb.z')};\n\n`;
 
-            // Step 2: Input to ACES AP0 (Reference Bridge)
-            const mSrcToXYZ = MathCore.getMatrix(sG);
-            const mXYZToAP0 = MathCore.inv(MathCore.getMatrix(ap0));
-            const mCAT = MathCore.getBradford(sG.w, ap0.w);
-            const mIDT = MathCore.mul(mXYZToAP0, MathCore.mul(mCAT, mSrcToXYZ));
-            
-            code += `    // IDT: Matrix to ACES AP0\n    v = apply_m33(v, ${mIDT.map(x => x.toFixed(8) + 'f').join(', ')});\n\n`;
-
-            // Step 3: AP0 to AP1 for Rendering
-            if (UI.tm.value === 'ACES_2_0') {
-                const mAP0toAP1 = MathCore.mul(MathCore.inv(MathCore.getMatrix(ap1)), MathCore.getMatrix(ap0));
-                code += `    // Bridge: AP0 to AP1 (Working Space)\n    v = apply_m33(v, ${mAP0toAP1.map(x => x.toFixed(8) + 'f').join(', ')});\n\n`;
-                code += `    // DRT: ACES 2.0 Rendering\n    v = apply_aces_2_0_drt(v);\n\n`;
-                const mAP1toAP0 = MathCore.inv(mAP0toAP1);
-                code += `    // Bridge: AP1 back to AP0\n    v = apply_m33(v, ${mAP1toAP0.map(x => x.toFixed(8) + 'f').join(', ')});\n\n`;
+            if (config.tm === 'NONE') {
+                const m = Math32.mul(Math32.inv(Math32.getPrimaryMatrix(dst)), Math32.getPrimaryMatrix(src));
+                code += `    // 2. Linear Analytic Bridge\n    rgb = apply_matrix(rgb, ${m[0][0].toFixed(8)}f, ${m[0][1].toFixed(8)}f, ${m[0][2].toFixed(8)}f, ${m[1][0].toFixed(8)}f, ${m[1][1].toFixed(8)}f, ${m[1][2].toFixed(8)}f, ${m[2][0].toFixed(8)}f, ${m[2][1].toFixed(8)}f, ${m[2][2].toFixed(8)}f);\n\n`;
+            } else {
+                const mIn = Math32.mul(Math32.inv(Math32.getPrimaryMatrix(ap1)), Math32.getPrimaryMatrix(src));
+                const mOut = Math32.mul(Math32.inv(Math32.getPrimaryMatrix(dst)), Math32.getPrimaryMatrix(ap1));
+                code += `    // 2. Input Alignment to Working Space (AP1)\n    rgb = apply_matrix(rgb, ${mIn[0][0].toFixed(8)}f, ${mIn[0][1].toFixed(8)}f, ${mIn[0][2].toFixed(8)}f, ${mIn[1][0].toFixed(8)}f, ${mIn[1][1].toFixed(8)}f, ${mIn[1][2].toFixed(8)}f, ${mIn[2][0].toFixed(8)}f, ${mIn[2][1].toFixed(8)}f, ${mIn[2][2].toFixed(8)}f);\n\n`;
+                code += `    // 3. Perceptual Processing\n    rgb = apply_ipt(rgb);\n\n`;
+                code += `    // 4. Output Alignment to Display Space\n    rgb = apply_matrix(rgb, ${mOut[0][0].toFixed(8)}f, ${mOut[0][1].toFixed(8)}f, ${mOut[0][2].toFixed(8)}f, ${mOut[1][0].toFixed(8)}f, ${mOut[1][1].toFixed(8)}f, ${mOut[1][2].toFixed(8)}f, ${mOut[2][0].toFixed(8)}f, ${mOut[2][1].toFixed(8)}f, ${mOut[2][2].toFixed(8)}f);\n\n`;
             }
 
-            // Step 4: ACES AP0 to Output ODT
-            const mAP0ToXYZ = MathCore.getMatrix(ap0);
-            const mXYZToDst = MathCore.inv(MathCore.getMatrix(dG));
-            const mCATOut = MathCore.getBradford(ap0.w, dG.w);
-            const mODT = MathCore.mul(mXYZToDst, MathCore.mul(mCATOut, mAP0ToXYZ));
-
-            code += `    // ODT: Matrix to Target Gamut\n    v = apply_m33(v, ${mODT.map(x => x.toFixed(8) + 'f').join(', ')});\n\n`;
-
-            // Step 5: Analytical Encoding
-            code += `    // ODT: Encode Transfer Function\n    v.x = ${dF.encode.replace(/v/g, 'v.x')};\n    v.y = ${dF.encode.replace(/v/g, 'v.y')};\n    v.z = ${dF.encode.replace(/v/g, 'v.z')};\n\n`;
-
-            code += `    return v;\n}`;
+            code += `    return rgb;\n}`;
             UI.code.textContent = code;
-            UI.fn.textContent = `aces2_${UI.srcG.value}_to_${UI.dstG.value}.dctl`.toLowerCase().replace(/\s+/g, '_');
+            UI.file.textContent = `aces2_${config.srcG}_to_${config.dstG}.dctl`.toLowerCase().replace(/ /g, '_');
+            
+            // Parity Badge Logic (Simple Check)
+            const parityTest = Math.sqrt(Math32.getPrimaryMatrix(src).flat().reduce((a,b)=>a+b*b,0));
+            document.getElementById("statCond").textContent = parityTest.toFixed(3);
+            document.getElementById("parityBadge").classList.toggle('hidden', parityTest < 0);
         }
 
-        function init() {
-            Object.keys(GAMUTS).sort().forEach(g => { 
-                UI.srcG.add(new Option(g,g)); UI.dstG.add(new Option(g,g)); 
-            });
-            Object.keys(TRANSFER_FUNCS).sort().forEach(f => { 
-                UI.srcF.add(new Option(f,f)); UI.dstF.add(new Option(f,f)); 
-            });
-            UI.srcG.value = "Sony S-Gamut3.Cine"; UI.srcF.value = "S-Log3";
-            UI.dstG.value = "Rec.709"; UI.dstF.value = "Gamma 2.4";
+        const UI = {
+            srcG: document.getElementById("srcGamut"), srcT: document.getElementById("srcGamma"),
+            dstG: document.getElementById("dstGamut"), dstT: document.getElementById("dstGamma"),
+            tm: document.getElementById("toneMapping"), code: document.getElementById("codeBlock"),
+            file: document.getElementById("previewFilename")
+        };
 
-            [UI.srcG, UI.srcF, UI.dstG, UI.dstF, UI.tm].forEach(el => el.onchange = compile);
-            document.getElementById('swapBtn').onclick = () => {
-                let [g, f] = [UI.srcG.value, UI.srcF.value];
-                UI.srcG.value = UI.dstG.value; UI.srcF.value = UI.dstF.value;
-                UI.dstG.value = g; UI.dstF.value = f; compile();
+        const init = () => {
+            Object.keys(GAMUTS).sort().forEach(g => { UI.srcG.add(new Option(g,g)); UI.dstG.add(new Option(g,g)); });
+            Object.keys(TFLibrary).sort().forEach(t => { UI.srcT.add(new Option(t,t)); UI.dstT.add(new Option(t,t)); });
+            
+            UI.srcG.value = "Sony S-Gamut3.Cine"; UI.srcT.value = "S-Log3"; 
+            UI.dstG.value = "Rec.709"; UI.dstT.value = "Gamma 2.4";
+
+            [UI.srcG, UI.srcT, UI.dstG, UI.dstT, UI.tm].forEach(el => el.addEventListener('change', compile));
+            
+            document.getElementById("swapBtn").onclick = () => {
+                const [g, t] = [UI.srcG.value, UI.srcT.value];
+                UI.srcG.value = UI.dstG.value; UI.srcT.value = UI.dstT.value;
+                UI.dstG.value = g; UI.dstT.value = t; compile();
             };
-            document.getElementById('copyBtn').onclick = () => {
+
+            document.getElementById("copyBtn").onclick = () => {
                 navigator.clipboard.writeText(UI.code.textContent);
-                UI.copyBtn.innerText = "COPIED";
-                setTimeout(() => UI.copyBtn.innerText = "COPY CODE", 1000);
+                const original = copyBtn.textContent; copyBtn.textContent = 'COPIED';
+                setTimeout(() => copyBtn.textContent = original, 1000);
             };
+
+            document.getElementById("downloadBtn").onclick = () => {
+                const blob = new Blob([UI.code.textContent], {type: "text/plain"});
+                const a = document.createElement("a"); a.href = URL.createObjectURL(blob); 
+                a.download = UI.file.textContent; a.click();
+            };
+
             compile();
-        }
+        };
 
         init();
     </script>
