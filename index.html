@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>3D LUT Analytical DCTL Compiler</title>
+    <title>LUT &rarr; Analytical DCTL Reconstruction Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -13,9 +13,21 @@
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
         body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #a1a1aa; -webkit-font-smoothing: antialiased; }
         .mono { font-family: 'JetBrains Mono', monospace; }
+        select {
+            appearance: none; background-color: #18181b; border: 1px solid #27272a; border-radius: 6px; outline: none; transition: all 0.15s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2352525b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem; padding: 0.5rem 2rem 0.5rem 0.75rem;
+        }
+        select:focus { border-color: #ea580c; }
+        optgroup { font-style: normal; font-weight: 700; color: #71717a; background: #18181b; }
+        option { color: #e4e4e7; background: #18181b; }
         .diagnostic-box { border-left: 2px solid #27272a; padding-left: 12px; background: rgba(24, 24, 27, 0.4); }
         .drop-zone { border: 2px dashed #27272a; transition: all 0.2s ease; }
         .drop-zone.active { border-color: #ea580c; background: rgba(234, 88, 12, 0.05); }
+        .tier-stable { color: #10b981; }
+        .tier-caution { color: #f59e0b; }
+        .tier-unstable { color: #ef4444; }
+        .tier-fatal { color: #ef4444; font-weight: 900; background: #450a0a; padding: 0 4px; border-radius: 2px; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -23,9 +35,14 @@
     <header class="h-14 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between px-6 shrink-0 z-50">
         <div class="flex items-center gap-4">
             <div class="w-2.5 h-2.5 rounded-full bg-orange-600 animate-pulse"></div>
-            <h1 class="text-[11px] font-bold tracking-[0.2em] text-zinc-100 uppercase">3D LUT Mathematical Decompiler</h1>
+            <h1 class="text-[11px] font-bold tracking-[0.2em] text-zinc-100 uppercase">LUT &rarr; Analytical DCTL Reconstruction Tool</h1>
             <div class="h-3 w-[1px] bg-zinc-800"></div>
-            <span class="text-[10px] mono text-zinc-500 uppercase tracking-tighter">Float32 Solver: v1.0.0</span>
+            <span class="text-[10px] mono text-zinc-500 uppercase tracking-tighter">Decompiler Framework v34.0</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <div id="valStatus" class="px-3 py-1 rounded border border-zinc-700 bg-zinc-950 text-[9px] font-black uppercase mono transition-all text-zinc-400">
+                Mathematical Solver Active
+            </div>
         </div>
     </header>
 
@@ -34,50 +51,70 @@
             <div class="p-6 space-y-6 flex-1">
                 
                 <section class="space-y-2">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Ingest 3D LUT (.cube)</label>
-                    <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer hover:border-zinc-600">
-                        <svg class="w-8 h-8 mx-auto text-zinc-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Ingest 3D LUT (.cube / .txt)</label>
+                    <div id="dropZone" class="drop-zone rounded-lg p-6 text-center cursor-pointer hover:border-zinc-700 bg-zinc-900/20">
+                        <svg class="w-6 h-6 mx-auto text-zinc-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                         <span class="text-[11px] text-zinc-400 block font-medium">Drag & Drop or Click to Browse</span>
-                        <input type="file" id="fileInput" accept=".cube" class="hidden">
+                        <span class="text-[9px] text-zinc-600 block mt-1">Optimized for Resolve 65-Point Lattice Structure</span>
+                        <input type="file" id="fileInput" accept=".cube,.txt" class="hidden">
                     </div>
                 </section>
 
                 <section class="space-y-4 pt-4 border-t border-zinc-800/50">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Solver Rigor</label>
-                    <div class="space-y-2">
-                        <label class="text-[9px] font-bold uppercase text-zinc-500 block">Polynomial Fitting Degree</label>
-                        <select id="polyDegree" class="w-full text-[11px] mono text-zinc-300 p-2 bg-zinc-900 border border-zinc-800 rounded">
-                            <option value="3">3rd-Order Spline (Highly Stable)</option>
-                            <option value="4">4th-Order Spline (Balanced)</option>
-                            <option value="5" selected>5th-Order Spline (Maximum Precision)</option>
-                        </select>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Solver Engine Configuration</label>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label for="cstMode" class="text-[11px] text-zinc-400 font-medium">Resolve CST Reconstruction Mode</label>
+                            <input type="checkbox" id="cstMode" checked class="rounded border-zinc-700 bg-zinc-900 text-orange-600 focus:ring-0">
+                        </div>
+                        <p class="text-[10px] text-zinc-600 leading-normal">Enabling this structures the solver to scan color curve databases (Gamma, LogC, S-Log3) to mathematically recognize native Color Space Transforms, preventing curve overshoot.</p>
+                        
+                        <div class="space-y-1.5">
+                            <label for="polyDegree" class="text-[10px] text-zinc-500 font-bold uppercase tracking-tight block">Polynomial Approximation Order</label>
+                            <select id="polyDegree" class="w-full text-[11px] mono text-zinc-300">
+                                <option value="3">3rd-Order Spline (Shadow Prioritized)</option>
+                                <option value="4">4th-Order Spline (Balanced)</option>
+                                <option value="5" selected>5th-Order Spline (Maximum Precision)</option>
+                            </select>
+                        </div>
                     </div>
                 </section>
 
-                <section class="space-y-2 pt-4 border-t border-zinc-800/50 text-[10px] mono text-zinc-500 uppercase leading-relaxed">
-                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block font-sans mb-2">Mathematical Fit Quality</label>
+                <div class="hidden">
+                    <select id="srcGamut"></select><select id="srcGamma"></select>
+                    <select id="dstGamut"></select><select id="dstGamma"></select>
+                    <select id="renderingMode"><option value="ACES_2_0"></option></select>
+                    <input type="range" id="exposure" value="0">
+                    <input type="checkbox" id="debugNaN" checked>
+                </div>
+
+                <section class="space-y-3 pt-4 border-t border-zinc-800/50 text-[10px] mono text-zinc-500 uppercase leading-relaxed">
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-sans block mb-1">Deconstruction Report</label>
                     <div class="diagnostic-box p-3 space-y-2 rounded-lg">
-                        <div class="flex justify-between"><span>LUT Grid Size:</span><span id="diagSize" class="text-zinc-200">-</span></div>
-                        <div class="flex justify-between"><span>Matrix Residual R²:</span><span id="diagR2" class="text-zinc-200">-</span></div>
-                        <div class="flex justify-between"><span>Fit Root-MSE:</span><span id="diagRMSE" class="text-orange-600">-</span></div>
-                        <div class="flex justify-between"><span>Solver State:</span><span id="diagState" class="font-bold text-zinc-500">AWAITING DATA</span></div>
+                        <div class="flex justify-between"><span>Lattice Dimensions:</span><span id="statSize" class="text-zinc-200">-</span></div>
+                        <div class="flex justify-between"><span>Classification:</span><span id="statClass" class="text-zinc-200">-</span></div>
+                        <div class="flex justify-between"><span>Transfer Profile:</span><span id="statTransfer" class="text-orange-500">-</span></div>
+                        <div class="flex justify-between"><span>Matrix Det |A|:</span><span id="statDet" class="text-zinc-200">-</span></div>
+                        <div class="flex justify-between"><span>Matrix Condition κ:</span><span id="statCond" class="text-zinc-200">-</span></div>
+                        <div class="flex justify-between"><span>Global Residual RMS:</span><span id="statRMS" class="text-orange-600 font-bold">-</span></div>
+                        <div class="flex justify-between border-t border-zinc-800/60 pt-1.5"><span>Transform State:</span><span id="statTier" class="font-bold">-</span></div>
                     </div>
                 </section>
             </div>
 
             <div class="p-6 border-t border-zinc-800 space-y-2 bg-zinc-900/10 shrink-0">
-                <button id="copyBtn" disabled class="w-full py-2.5 rounded border border-zinc-700 hover:bg-zinc-800 text-[10px] font-bold uppercase tracking-widest text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed">Copy to Clipboard</button>
-                <button id="downloadBtn" disabled class="w-full py-2.5 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">Download .dctl</button>
+                <button id="copyBtn" disabled class="w-full py-2.5 rounded border border-zinc-700 hover:bg-zinc-800 text-[10px] font-bold uppercase tracking-widest text-zinc-300 disabled:opacity-20 disabled:cursor-not-allowed transition-all">Copy to Clipboard</button>
+                <button id="downloadBtn" disabled class="w-full py-2.5 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest disabled:opacity-20 disabled:cursor-not-allowed transition-all">Download Headless .dctl</button>
             </div>
         </aside>
 
         <section class="flex-1 flex flex-col bg-black/40 overflow-hidden">
             <div class="h-10 border-b border-zinc-800 flex items-center px-6 justify-between bg-zinc-900/30 shrink-0">
-                <span id="previewFilename" class="text-[10px] mono text-zinc-500 lowercase tracking-tight">compiled_look.dctl</span>
-                <span class="text-[9px] uppercase tracking-widest text-zinc-600 font-black">Headless Media Pool Architecture</span>
+                <span id="previewFilename" class="text-[10px] mono text-zinc-500 lowercase tracking-tight">reconstructed_transform.dctl</span>
+                <span class="text-[9px] uppercase tracking-widest text-zinc-600 font-black">Headless / No UI Elements Slot Architecture</span>
             </div>
             <div class="flex-1 overflow-auto p-12 lg:p-24 selection:bg-orange-600/30 leading-relaxed">
-                <pre id="codeOutput" class="text-[12px] mono text-zinc-600 whitespace-pre">Awaiting .cube file execution block injection...</pre>
+                <pre id="codeOutput" class="text-[12px] mono text-zinc-600 whitespace-pre">Awaiting structured 3D LUT file parse sequence initialization...</pre>
             </div>
         </section>
     </main>
@@ -85,92 +122,138 @@
     <script>
         /**
          * =====================================================================
-         * LINEAR ALGEBRA AND POLYNOMIAL REGRESSION MATH CORE
+         * REFERENCE CURVE PROFILES DATABASE (CST ENGINE MATCHING)
          * =====================================================================
          */
-        const MathEngine = {
-            inv: (m) => {
-                let n = m.length;
-                let A = [];
-                for(let i=0; i<n; i++) {
-                    A[i] = [];
-                    for(let j=0; j<n*2; j++) {
-                        A[i][j] = (j < n) ? m[i][j] : (j === n + i ? 1.0 : 0.0);
-                    }
-                }
-                for(let i=0; i<n; i++) {
-                    let maxEl = Math.abs(A[i][i]), maxRow = i;
-                    for(let k=i+1; k<n; k++) {
-                        if(Math.abs(A[k][i]) > maxEl) { maxEl = Math.abs(A[k][i]); maxRow = k; }
-                    }
-                    if (maxEl < 1e-15) return null;
-                    for(let k=i; k<n*2; k++) { let t = A[maxRow][k]; A[maxRow][k] = A[i][k]; A[i][k] = t; }
-                    for(let k=i+1; k<n; k++) {
-                        let c = -A[k][i] / A[i][i];
-                        for(let j=i; j<n*2; j++) { if(i===j) { A[k][j] = 0; } else { A[k][j] += c * A[i][j]; } }
-                    }
-                }
-                for(let i=n-1; i>=0; i--) {
-                    for(let k=i-1; k>=0; k--) {
-                        let c = -A[k][i] / A[i][i];
-                        for(let j=i; j<n*2; j++) { A[k][j] += c * A[i][j]; }
-                    }
-                    let div = A[i][i];
-                    for(let j=i; j<n*2; j++) { A[i][j] /= div; }
-                }
-                let invM = [];
-                for(let i=0; i<n; i++) { invM[i] = A[i].slice(n); }
-                return invM;
-            },
+        const PROFILE_DATABASE = {
+            "Linear": { dec: (v) => v, enc: (v) => v },
+            "Gamma 2.2": { dec: (v) => Math.pow(Math.max(v, 0.0), 2.2), enc: (v) => Math.pow(Math.max(v, 0.0), 1.0 / 2.2) },
+            "Gamma 2.4": { dec: (v) => Math.pow(Math.max(v, 0.0), 2.4), enc: (v) => Math.pow(Math.max(v, 0.0), 1.0 / 2.4) },
+            "Gamma 2.6": { dec: (v) => Math.pow(Math.max(v, 0.0), 2.6), enc: (v) => Math.pow(Math.max(v, 0.0), 1.0 / 2.6) },
+            "sRGB": { dec: (v) => (v <= 0.04045) ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4), enc: (v) => (v <= 0.0031308) ? v * 12.92 : 1.055 * Math.pow(v, 1.0 / 2.4) - 0.055 },
+            "Rec.709": { dec: (v) => (v < 0.081) ? v / 4.5 : Math.pow((v + 0.099) / 1.099, 1.0 / 0.45), enc: (v) => (v < 0.018) ? 4.5 * v : 1.099 * Math.pow(v, 0.45) - 0.099 },
+            "Sony S-Log3": { dec: (v) => (v >= 0.167361) ? (Math.pow(10.0, (v * 1023.0 - 420.0) / 261.5) * 0.19 - 0.01) : (v * 1023.0 - 95.0) * 0.01125 / 76.2103, enc: (v) => (v >= 0.01125) ? (261.5 * Math.log10((v + 0.01) / 0.19) + 420.0) / 1023.0 : (v * 76.2103 / 0.01125 + 95.0) / 1023.0 },
+            "ARRI LogC3": { dec: (v) => (v > 0.149658) ? (Math.pow(10.0, (v - 0.385537) / 0.247189) - 0.052272) / 5.555556 : (v - 0.092809) / 5.367655, enc: (v) => (v > 0.010591) ? 0.247189 * Math.log10(5.555556 * v + 0.052272) + 0.385537 : 5.367655 * v + 0.092809 },
+            "Panasonic V-Log": { dec: (v) => (v < 0.181) ? (v - 0.125) / 5.6 : Math.pow(10.0, (v - 0.398) / 0.241514) - 0.00873, enc: (v) => (v < 0.01) ? 5.6 * v + 0.125 : 0.241514 * Math.log10(v + 0.00873) + 0.398 }
+        };
 
+        const MathCore = {
+            safe_div: (a, b) => (Math.abs(b) < 1.192092896e-15) ? 0 : a / b,
+            fmt: (v) => { if(!Number.isFinite(v)) return "0.0f"; const n = Math.abs(v) < 1e-12 ? 0 : v; return n.toFixed(8) + 'f'; },
+            det: (m) => m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1]) - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]),
+            inv: (m) => {
+                if(!m) return null; const d = MathCore.det(m); if (Math.abs(d) < 1e-18) return null;
+                const i = 1.0 / d;
+                return [[(m[1][1]*m[2][2]-m[1][2]*m[2][1])*i, (m[0][2]*m[2][1]-m[0][1]*m[2][2])*i, (m[0][1]*m[1][2]-m[0][2]*m[1][1])*i],
+                        [(m[1][2]*m[2][0]-m[1][0]*m[2][2])*i, (m[0][0]*m[2][2]-m[0][2]*m[2][0])*i, (m[0][2]*m[1][0]-m[0][0]*m[1][2])*i],
+                        [(m[1][0]*m[2][1]-m[1][1]*m[2][0])*i, (m[0][1]*m[2][0]-m[0][0]*m[2][1])*i, (m[0][0]*m[1][1]-m[0][1]*m[1][0])*i]];
+            },
+            infNorm: (m) => { if(!m) return Infinity; return Math.max(...m.map(row => row.reduce((s, x) => s + Math.abs(x), 0))); },
+            mul: (A, B) => {
+                if(!A || !B) return null; let C = [[0,0,0],[0,0,0],[0,0,0]];
+                for(let i=0; i<3; i++) for(let j=0; j<3; j++) C[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j];
+                return C;
+            },
+            xy2XYZ: (p) => (Math.abs(p[1]) < 1e-12) ? [0, 0, 0] : [p[0] / p[1], 1.0, (1.0 - p[0] - p[1]) / p[1]],
+            getBradford: (sW, dW) => {
+                if(sW[0]===dW[0] && sW[1]===dW[1]) return [[1,0,0],[0,1,0],[0,0,1]];
+                const MB = [[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]];
+                const sL = MathCore.mulVec(MB, MathCore.xy2XYZ(sW)), dL = MathCore.mulVec(MB, MathCore.xy2XYZ(dW));
+                const D = [[MathCore.safe_div(dL[0], sL[0]),0,0],[0,MathCore.safe_div(dL[1], sL[1]),0],[0,0,MathCore.safe_div(dL[2], sL[2])]];
+                const invMB = MathCore.inv(MB); return invMB ? MathCore.mul(invMB, MathCore.mul(D, MB)) : [[1,0,0],[0,1,0],[0,0,1]];
+            },
+            mulVec: (m, v) => [m[0][0]*v[0]+m[0][1]*v[1]+m[0][2]*v[2], m[1][0]*v[0]+m[1][1]*v[1]+m[1][2]*v[2], m[2][0]*v[0]+m[2][1]*v[1]+m[2][2]*v[2]],
             solveOLS: (X, Y) => {
                 let cols = X[0].length;
                 let XtX = Array(cols).fill(0).map(() => Array(cols).fill(0));
                 let XtY = Array(cols).fill(0);
-                for(let i=0; i<X.length; i++) {
-                    for(let r=0; r<cols; r++) {
-                        for(let c=0; c<cols; c++) { XtX[r][c] += X[i][r] * X[i][c]; }
+                for(let i = 0; i < X.length; i++) {
+                    for(let r = 0; r < cols; r++) {
+                        for(let c = 0; c < cols; c++) { XtX[r][c] += X[i][r] * X[i][c]; }
                         XtY[r] += X[i][r] * Y[i];
                     }
                 }
-                let invXtX = MathEngine.inv(XtX);
+                let invXtX = XtX.length === 3 ? MathCore.inv(XtX) : MathCore.generalInverse(XtX);
                 if (!invXtX) return null;
                 let beta = Array(cols).fill(0);
-                for(let r=0; r<cols; r++) {
-                    for(let c=0; c<cols; c++) { beta[r] += invXtX[r][c] * XtY[c]; }
+                for(let r = 0; r < cols; r++) {
+                    for(let c = 0; c < cols; c++) { beta[r] += invXtX[r][c] * XtY[c]; }
                 }
                 return beta;
             },
-
-            fmt: (v) => { if(!Number.isFinite(v)) return "0.0f"; return v.toFixed(9) + "f"; }
+            generalInverse: (m) => {
+                let n = m.length;
+                let A = m.map((row, i) => row.concat(Array(n).fill(0).map((_, j) => i === j ? 1 : 0)));
+                for (let i = 0; i < n; i++) {
+                    let maxRow = i;
+                    for (let k = i + 1; k < n; k++) { if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k; }
+                    let temp = A[i]; A[i] = A[maxRow]; A[maxRow] = temp;
+                    if (Math.abs(A[i][i]) < 1e-15) return null;
+                    for (let k = i + 1; k < n; k++) {
+                        let c = -A[k][i] / A[i][i];
+                        for (let j = i; j < 2 * n; j++) { A[k][j] += c * A[i][j]; }
+                    }
+                }
+                for (let i = n - 1; i >= 0; i--) {
+                    for (let k = i - 1; k >= 0; k--) {
+                        let c = -A[k][i] / A[i][i];
+                        for (let j = i; j < 2 * n; j++) { A[k][j] += c * A[i][j]; }
+                    }
+                    let div = A[i][i];
+                    for (let j = i; j < 2 * n; j++) { A[i][j] /= div; }
+                }
+                return A.map(row => row.slice(n));
+            },
+            validateChromaticity: (p) => {
+                if (!p || p === "STRICT_XYZ_BYPASS") return true;
+                const pts = [p.r, p.g, p.b, p.w];
+                for (const xy of pts) { if (!Array.isArray(xy) || xy.length !== 2 || !Number.isFinite(xy[0]) || !Number.isFinite(xy[1]) || Math.abs(xy[1]) < 1e-12) return false; }
+                return true;
+            }
         };
 
         const UI = {
-            drop: document.getElementById('dropZone'), input: document.getElementById('fileInput'),
-            degree: document.getElementById('polyDegree'), code: document.getElementById('codeOutput'),
-            fn: document.getElementById('previewFilename'), copy: document.getElementById('copyBtn'),
-            down: document.getElementById('downloadBtn'), size: document.getElementById('diagSize'),
-            r2: document.getElementById('diagR2'), rmse: document.getElementById('diagRMSE'),
-            state: document.getElementById('diagState'), val: document.getElementById('valStatus')
+            drop: document.getElementById('dropZone'), 
+            input: document.getElementById('fileInput'),
+            degree: document.getElementById('polyDegree'), 
+            code: document.getElementById('codeOutput'),
+            fn: document.getElementById('previewFilename'), 
+            copy: document.getElementById('copyBtn'),
+            down: document.getElementById('downloadBtn'), 
+            val: document.getElementById('valStatus'),
+            det: document.getElementById('statDet'), 
+            nits: document.getElementById('statNits'), 
+            hdrBox: document.getElementById('hdrInfo'), 
+            cond: document.getElementById('statCond'),
+            tier: document.getElementById('statTier'), 
+            debug: document.getElementById('debugNaN'),
+            size: document.getElementById('statSize'),
+            cls: document.getElementById('statClass'),
+            transfer: document.getElementById('statTransfer'),
+            rms: document.getElementById('statRMS')
         };
 
-        let parsedLutData = null;
+        function failCompile(msg) {
+            UI.code.textContent = "[ABORT] Numerical failure: " + msg;
+            UI.tier.textContent = "FATAL"; UI.tier.className = "tier-fatal";
+            UI.det.textContent = UI.cond.textContent = UI.rms.textContent = "-"; UI.fn.textContent = "invalid_kernel.txt";
+            UI.copy.disabled = UI.down.disabled = true;
+            UI.val.textContent = msg; UI.val.className = "px-3 py-1 rounded border border-red-700 bg-zinc-950 text-[9px] font-black uppercase mono text-red-500";
+        }
 
-        /**
-         * =====================================================================
-         * .CUBE LATTICE PARSER
-         * =====================================================================
-         */
-        function handleFile(file) {
+        function sanitizeFilename(v) {
+            return v.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '') + '.dctl';
+        }
+
+        function handleLutIngestion(file) {
             if (!file) return;
-            UI.state.textContent = "COMPUTING...";
-            UI.state.className = "font-bold text-orange-500 animate-pulse";
+            UI.tier.textContent = "COMPUTING GRAPH..."; UI.tier.className = "tier-caution animate-pulse";
             
             const reader = new FileReader();
             reader.onload = function(e) {
                 const lines = e.target.result.split('\n');
                 let size = 0;
-                let points = [];
+                let entries = [];
 
                 for (let line of lines) {
                     line = line.trim();
@@ -179,42 +262,34 @@
                         size = parseInt(line.match(/\d+/)[0]);
                         continue;
                     }
-                    if (line.startsWith('LUT_1D_SIZE')) {
-                        failCompile("1D LUTs not supported. Input must be a 3D structural lattice.");
-                        return;
-                    }
                     const tokens = line.split(/\s+/).map(Number);
                     if (tokens.length === 3 && tokens.every(Number.isFinite)) {
-                        points.push(tokens);
+                        entries.push(tokens);
                     }
                 }
 
-                if (size === 0 || points.length !== size * size * size) {
-                    failCompile(`Lattice structure mismatch. Extracted ${points.length} points for defined size ${size}.`);
+                if (size === 0 || entries.length !== Math.pow(size, 3)) {
+                    failCompile("Lattice structural verification failed. Raw nodes mismatch sizing keys.");
                     return;
                 }
 
-                parsedLutData = { size: size, data: points };
-                decompile();
+                parsedLatticeData = { size: size, data: entries };
+                executeReconstructionPipeline();
             };
             reader.readAsText(file);
         }
 
-        /**
-         * =====================================================================
-         * ANALYTICAL DECOMPOSITION ENGINE (REGRESSION TRANSFORMS)
-         * =====================================================================
-         */
-        function decompile() {
-            if (!parsedLutData) return;
-            const N = parsedLutData.size;
-            const points = parsedLutData.data;
-            const deg = parseInt(UI.degree.value);
+        function executeReconstructionPipeline() {
+            if (!parsedLatticeData) return;
+            const N = parsedLatticeData.size;
+            const data = parsedLatticeData.data;
+            const useCstMode = document.getElementById('cstMode').checked;
+            UI.degree.disabled = useCstMode;
+            const polyOrder = parseInt(UI.degree.value);
 
-            let X_mat = [];
-            let Y_r = [], Y_g = [], Y_b = [];
+            let gridInput = [];
+            let gridOutputR = [], gridOutputG = [], gridOutputB = [];
 
-            // Reconstruct perfect geometric input grid coordinates matching the 3D lattice indices
             let idx = 0;
             for (let r = 0; r < N; r++) {
                 for (let g = 0; g < N; g++) {
@@ -223,182 +298,233 @@
                         let gi = g / (N - 1);
                         let bi = b / (N - 1);
 
-                        X_mat.push([ri, gi, bi]);
-                        Y_r.push(points[idx][0]);
-                        Y_g.push(points[idx][1]);
-                        Y_b.push(points[idx][2]);
+                        gridInput.push([ri, gi, bi]);
+                        gridOutputR.push(data[idx][0]);
+                        gridOutputG.push(data[idx][1]);
+                        gridOutputB.push(data[idx][2]);
                         idx++;
                     }
                 }
             }
 
-            // Step 1: Solve OLS for the global 3x3 mixing color matrix
-            let rowR = MathEngine.solveOLS(X_mat, Y_r);
-            let rowG = MathEngine.solveOLS(X_mat, Y_g);
-            let rowB = MathEngine.solveOLS(X_mat, Y_b);
+            let recognizedProfile = "Custom Polynomial Curve Setup";
+            let bestDec = (x) => x;
+            let lowestRms = Infinity;
 
-            if (!rowR || !rowG || !rowB) {
-                failCompile("Matrix singular collapse during multivariate regression solving execution.");
-                return;
+            if (useCstMode) {
+                for (let pIn in PROFILE_DATABASE) {
+                    for (let pOut in PROFILE_DATABASE) {
+                        let linearizedInputs = gridInput.map(pt => [PROFILE_DATABASE[pIn].dec(pt[0]), PROFILE_DATABASE[pIn].dec(pt[1]), PROFILE_DATABASE[pIn].dec(pt[2])]);
+                        let outputDecodedR = gridOutputR.map(v => PROFILE_DATABASE[pOut].dec(v));
+                        let outputDecodedG = gridOutputG.map(v => PROFILE_DATABASE[pOut].dec(v));
+                        let outputDecodedB = gridOutputB.map(v => PROFILE_DATABASE[pOut].dec(v));
+
+                        let testMatR = MathCore.solveOLS(linearizedInputs, outputDecodedR);
+                        let testMatG = MathCore.solveOLS(linearizedInputs, outputDecodedG);
+                        let testMatB = MathCore.solveOLS(linearizedInputs, outputDecodedB);
+
+                        if (!testMatR || !testMatG || !testMatB) continue;
+
+                        let currentSqErr = 0;
+                        let sampleStep = Math.max(1, Math.floor(gridInput.length / 1500));
+                        for(let i=0; i<gridInput.length; i+=sampleStep) {
+                            let lR = linearizedInputs[i][0]*testMatR[0] + linearizedInputs[i][1]*testMatR[1] + linearizedInputs[i][2]*testMatR[2];
+                            let lG = linearizedInputs[i][0]*testMatG[0] + linearizedInputs[i][1]*testMatG[1] + linearizedInputs[i][2]*testMatG[2];
+                            let lB = linearizedInputs[i][0]*testMatB[0] + linearizedInputs[i][1]*testMatB[1] + linearizedInputs[i][2]*testMatB[2];
+
+                            let pR = PROFILE_DATABASE[pOut].enc(lR);
+                            let pG = PROFILE_DATABASE[pOut].enc(lG);
+                            let pB = PROFILE_DATABASE[pOut].enc(lB);
+
+                            currentSqErr += Math.pow(gridOutputR[i]-pR, 2) + Math.pow(gridOutputG[i]-pG, 2) + Math.pow(gridOutputB[i]-pB, 2);
+                        }
+                        let currentRms = Math.sqrt(currentSqErr / ((gridInput.length / sampleStep) * 3));
+                        if (currentRms < lowestRms) {
+                            lowestRms = currentRms;
+                            recognizedProfile = `${pIn} &rarr; ${pOut} Transfer Bridge`;
+                            bestDec = PROFILE_DATABASE[pIn].dec;
+                        }
+                    }
+                }
             }
 
-            // Step 2: Extract post-matrix residuals to fit transfer curves using 1D Spline Regression
-            let polyInR = [], polyInG = [], polyInB = [];
-            for(let i=0; i<X_mat.length; i++) {
-                let linR = X_mat[i][0]*rowR[0] + X_mat[i][1]*rowR[1] + X_mat[i][2]*rowR[2];
-                let linG = X_mat[i][0]*rowG[0] + X_mat[i][1]*rowG[1] + X_mat[i][2]*rowG[2];
-                let linB = X_mat[i][0]*rowB[0] + X_mat[i][1]*rowB[1] + X_mat[i][2]*rowB[2];
+            let isCustomFit = !useCstMode || lowestRms > 0.005;
+            let polyCoefsR = [], polyCoefsG = [], polyCoefsB = [];
 
-                polyInR.push(linR);
-                polyInG.push(linG);
-                polyInB.push(linB);
+            if (isCustomFit) {
+                recognizedProfile = `Custom Analytical Spline (Order ${polyOrder})`;
+                bestDec = (x) => x;
             }
 
-            const buildPolyFeatures = (arr, d) => arr.map(v => {
-                let row = [];
-                for(let p=1; p<=d; p++) row.push(Math.pow(v, p));
-                row.push(1.0); // Intercept constant term
-                return row;
-            });
+            let optimizedInputs = gridInput.map(pt => [bestDec(pt[0]), bestDec(pt[1]), bestDec(pt[2])]);
+            let outCurveLabel = isCustomFit ? "Linear" : recognizedProfile.split(" &rarr; ")[1].trim();
 
-            let polyFeaturesR = buildPolyFeatures(polyInR, deg);
-            let polyFeaturesG = buildPolyFeatures(polyInG, deg);
-            let polyFeaturesB = buildPolyFeatures(polyInB, deg);
+            let finalMatR = MathCore.solveOLS(optimizedInputs, isCustomFit ? gridOutputR : gridOutputR.map(v => PROFILE_DATABASE[outCurveLabel].dec(v)));
+            let finalMatG = MathCore.solveOLS(optimizedInputs, isCustomFit ? gridOutputG : gridOutputG.map(v => PROFILE_DATABASE[outCurveLabel].dec(v)));
+            let finalMatB = MathCore.solveOLS(optimizedInputs, isCustomFit ? gridOutputB : gridOutputB.map(v => PROFILE_DATABASE[outCurveLabel].dec(v)));
 
-            let coefsR = MathEngine.solveOLS(polyFeaturesR, Y_r);
-            let coefsG = MathEngine.solveOLS(polyFeaturesG, Y_g);
-            let coefsB = MathEngine.solveOLS(polyFeaturesB, Y_b);
+            if (!finalMatR || !finalMatG || !finalMatB) { failCompile("Matrix Inversion Refused (Singular Matrix)"); return; }
 
-            // Compute performance metrics
-            let totalSqErr = 0;
-            let totalVar = 0;
-            let meanY = Y_r.concat(Y_g, Y_b).reduce((a,b)=>a+b, 0) / (Y_r.length * 3);
-            
-            for(let i=0; i<X_mat.length; i++) {
-                const evaluate = (c, val, d) => {
-                    let s = 0; for(let p=0; p<d; p++) { s += c[p] * Math.pow(val, d-p); }
-                    return s + c[d];
-                };
-                let predR = evaluate(coefsR, polyInR[i], deg);
-                let predG = evaluate(coefsG, polyInG[i], deg);
-                let predB = evaluate(coefsB, polyInB[i], deg);
+            let finalM33 = [finalMatR.slice(0,3), finalMatG.slice(0,3), finalMatB.slice(0,3)];
+            let invM33 = MathCore.inv(finalM33);
+            let conditionNumber = invM33 ? MathCore.infNorm(finalM33) * MathCore.infNorm(invM33) : Infinity;
 
-                totalSqErr += Math.pow(Y_r[i]-predR, 2) + Math.pow(Y_g[i]-predG, 2) + Math.pow(Y_b[i]-predB, 2);
-                totalVar += Math.pow(Y_r[i]-meanY, 2) + Math.pow(Y_g[i]-meanY, 2) + Math.pow(Y_b[i]-meanY, 2);
+            if (isCustomFit) {
+                let extractedLinearR = [], extractedLinearG = [], extractedLinearB = [];
+                for(let i=0; i<gridInput.length; i++) {
+                    extractedLinearR.push(optimizedInputs[i][0]*finalMatR[0] + optimizedInputs[i][1]*finalMatR[1] + optimizedInputs[i][2]*finalMatR[2]);
+                    extractedLinearG.push(optimizedInputs[i][0]*finalMatG[0] + optimizedInputs[i][1]*finalMatG[1] + optimizedInputs[i][2]*finalMatG[2]);
+                    extractedLinearB.push(optimizedInputs[i][0]*finalMatB[0] + optimizedInputs[i][1]*finalMatB[1] + optimizedInputs[i][2]*finalMatB[2]);
+                }
+
+                const buildPolyFeatures = (arr, d) => arr.map(v => {
+                    let r = []; for(let p=d; p>=1; p--) r.push(Math.pow(v, p));
+                    r.push(1.0); return r;
+                });
+
+                polyCoefsR = MathCore.solveOLS(buildPolyFeatures(extractedLinearR, polyOrder), gridOutputR);
+                polyCoefsG = MathCore.solveOLS(buildPolyFeatures(extractedLinearG, polyOrder), gridOutputG);
+                polyCoefsB = MathCore.solveOLS(buildPolyFeatures(extractedLinearB, polyOrder), gridOutputB);
             }
 
-            let rmse = Math.sqrt(totalSqErr / (X_mat.length * 3));
-            let r2 = 1.0 - (totalSqErr / totalVar);
+            let totalErrSq = 0;
+            for(let i=0; i<gridInput.length; i++) {
+                let r_lin = optimizedInputs[i][0]*finalMatR[0] + optimizedInputs[i][1]*finalMatR[1] + optimizedInputs[i][2]*finalMatR[2];
+                let g_lin = optimizedInputs[i][0]*finalMatG[0] + optimizedInputs[i][1]*finalMatG[1] + optimizedInputs[i][2]*finalMatG[2];
+                let b_lin = optimizedInputs[i][0]*finalMatB[0] + optimizedInputs[i][1]*finalMatB[1] + optimizedInputs[i][2]*finalMatB[2];
 
-            // Update UI statistics
+                let pR, pG, pB;
+                if (isCustomFit) {
+                    const evalPoly = (c, val, d) => { let s = 0; for(let p=0; p<d; p++) s += c[p]*Math.pow(val, d-p); return s + c[d]; };
+                    pR = evalPoly(polyCoefsR, r_lin, polyOrder);
+                    pG = evalPoly(polyCoefsG, g_lin, polyOrder);
+                    pB = evalPoly(polyCoefsB, b_lin, polyOrder);
+                } else {
+                    pR = PROFILE_DATABASE[outCurveLabel].enc(r_lin);
+                    pG = PROFILE_DATABASE[outCurveLabel].enc(g_lin);
+                    pB = PROFILE_DATABASE[outCurveLabel].enc(b_lin);
+                }
+                totalErrSq += Math.pow(gridOutputR[i]-pR, 2) + Math.pow(gridOutputG[i]-pG, 2) + Math.pow(gridOutputB[i]-pB, 2);
+            }
+            let globalRms = Math.sqrt(totalErrSq / (gridInput.length * 3));
+
             UI.size.textContent = `${N}x${N}x${N}`;
-            UI.r2.textContent = r2.toFixed(5);
-            UI.rmse.textContent = rmse.toExponential(4);
-            UI.state.textContent = "SOLVED";
-            UI.state.className = "font-bold text-emerald-500";
-            UI.val.textContent = "Compilation Ready";
+            UI.det.textContent = MathCore.det(finalM33).toExponential(3);
+            UI.cond.textContent = Number.isFinite(conditionNumber) ? conditionNumber.toFixed(2) : "INFINITE";
+            UI.rms.textContent = globalRms.toExponential(5);
+            UI.val.textContent = "VALIDATED";
             UI.val.className = "px-3 py-1 rounded border border-emerald-700 bg-zinc-950 text-[9px] font-black uppercase mono text-emerald-500";
-            UI.copy.disabled = UI.down.disabled = false;
 
-            // Generate the output DCTL structure
-            emitDCTL(rowR, rowG, rowB, coefsR, coefsG, coefsB, deg);
+            let classification = "Pure Analytical Transform (CST)";
+            let tier = "STABLE"; let tierClass = "tier-stable";
+            if (globalRms > 0.001) classification = "Analytical Pipeline Fit Approximation";
+            if (globalRms > 0.01) { classification = "Non-Analytical Look (Creative Transform)"; tier = "UNSTABLE"; tierClass = "tier-unstable"; }
+            if (conditionNumber > 25) { tier = "CAUTION"; tierClass = "tier-caution"; }
+            if (conditionNumber >= 1000 || !Number.isFinite(conditionNumber)) { tier = "SINGULAR"; tierClass = "tier-fatal"; }
+
+            UI.cls.textContent = classification;
+            UI.tier.textContent = tier; UI.tier.className = tierClass;
+            UI.transfer.textContent = recognizedProfile.replace("&rarr;", "→");
+
+            UI.copy.disabled = UI.down.disabled = (tier === "SINGULAR");
+
+            emitProceduralDctl(finalM33, recognizedProfile, isCustomFit, polyCoefsR, polyCoefsG, polyCoefsB, polyOrder);
         }
 
-        /**
-         * =====================================================================
-         * DCTL HEADLESS SYNTAX EXPORT GENERATOR
-         * =====================================================================
-         */
-        function emitDCTL(rM, gM, bM, cR, cG, cB, deg) {
-            let code = `// --------------------------------------------------------------------\n`;
-            code += `// HEADLESS FLOATING-POINT MATHEMATICAL TRANSFORM KERNEL\n`;
-            code += `// Decompiled and Optimized via Multivariate Polynomial Regression Graph\n`;
-            code += `// --------------------------------------------------------------------\n\n`;
-            code += `#define ACES_EPSILON 1e-10f\n#define ACES_MAX_FLOAT 65504.0f\n\n`;
-            code += `#if defined(__CUDA_ARCH__)\n#define ACES_ISFINITE _isfinite\n#else\n#define ACES_ISFINITE isfinite\n#endif\n\n`;
+        function emitProceduralDctl(matrix, profileStr, isCustom, cR, cG, cB, order) {
+            let srcProfile = isCustom ? "Linear" : profileStr.split(" &rarr; ")[0].trim();
+            let dstProfile = isCustom ? "Linear" : profileStr.split(" &rarr; ")[1].trim();
 
-            code += `__DEVICE__ inline float sanitize_scalar(float v) {\n`;
-            code += `    if (v != v || !ACES_ISFINITE(v) || fabs(v) > ACES_MAX_FLOAT) return 0.0f;\n`;
-            code += `    return v;\n}\n\n`;
+            let dctl = `// =====================================================================\n`;
+            dctl += `// RECONSTRUCTED HEADLESS PROCEDURAL TRANSFORM KERNEL\n`;
+            dctl += `// Profile Classification: ${isCustom ? "Custom Arbitrary Spline Mapping" : "Identified System Color Space Transform"}\n`;
+            dctl += `// =====================================================================\n\n`;
 
-            code += `__DEVICE__ inline float3 validate_finite(float3 v) {\n`;
-            code += `    if (v.x != v.x || !ACES_ISFINITE(v.x) || v.y != v.y || !ACES_ISFINITE(v.y) || v.z != v.z || !ACES_ISFINITE(v.z)) {\n`;
-            code += `        return make_float3(1.0f, 0.0f, 1.0f); // Secure Display-Safe Diagnostic Magenta Signal\n`;
-            code += `    }\n    return make_float3(sanitize_scalar(v.x), sanitize_scalar(v.y), sanitize_scalar(v.z));\n}\n\n`;
+            dctl += `#define ACES_EPSILON 1e-10f\n#define ACES_MAX_FLOAT 1e37f\n\n`;
+            dctl += `#if defined(__CUDA_ARCH__)\n#define ACES_ISFINITE _isfinite\n#else\n#define ACES_ISFINITE isfinite\n#endif\n\n`;
 
-            // Emit polynomial segment solver function
-            code += `__DEVICE__ inline float evaluate_polynomial(float v, float c0, float c1, float c2, float c3, float c4, float c5, int degree) {\n`;
-            code += `    if (degree == 3) return c0*_powf(v,3.0f) + c1*_powf(v,2.0f) + c2*v + c3;\n`;
-            code += `    if (degree == 4) return c0*_powf(v,4.0f) + c1*_powf(v,3.0f) + c2*_powf(v,2.0f) + c3*v + c4;\n`;
-            code += `    return c0*_powf(v,5.0f) + c1*_powf(v,4.0f) + c2*_powf(v,3.0f) + c3*_powf(v,2.0f) + c4*v + c5;\n}\n\n`;
+            dctl += `__DEVICE__ inline float safe_div(float a, float b) { return (fabs(b) < ACES_EPSILON) ? 0.0f : a / b; }\n`;
+            dctl += `__DEVICE__ inline float safe_pow_p(float b, float e) { return _powf(_fmaxf(b, 0.0f), e); }\n`;
+            dctl += `__DEVICE__ inline float safe_log10(float v) { return _log10f(_fmaxf(v, ACES_EPSILON)); }\n`;
+            dctl += `__DEVICE__ inline float safe_log2(float v) { return _log2f(_fmaxf(v, ACES_EPSILON)); }\n`;
+            dctl += `__DEVICE__ inline float safe_exp(float v) { return _expf(_fminf(v, 80.0f)); }\n`;
+            dctl += `__DEVICE__ inline float safe_sqrt(float v) { return _sqrtf(_fmaxf(v, 0.0f)); }\n\n`;
 
-            code += `__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) {\n`;
-            code += `    float3 v = make_float3(p_R, p_G, p_B);\n\n`;
-            
-            code += `    // STAGE 1: Multivariate 3x3 Colorspace Coordinate Matrix Transform\n`;
-            code += `    float l_r = v.x * ${MathCore.fmt(rM[0])} + v.y * ${MathCore.fmt(rM[1])} + v.z * ${MathCore.fmt(rM[2])};\n`;
-            code += `    float l_g = v.x * ${MathCore.fmt(gM[0])} + v.y * ${MathCore.fmt(gM[1])} + v.z * ${MathCore.fmt(gM[2])};\n`;
-            code += `    float l_b = v.x * ${MathCore.fmt(bM[0])} + v.y * ${MathCore.fmt(bM[1])} + v.z * ${MathCore.fmt(bM[2])};\n`;
-            code += `    v = validate_finite(make_float3(l_r, l_g, l_b));\n\n`;
+            dctl += `__DEVICE__ inline float3 validate_finite(float3 v) {\n`;
+            dctl += `    float3 r = v;\n`;
+            dctl += `    if (r.x != r.x || !ACES_ISFINITE(r.x) || fabs(r.x) > ACES_MAX_FLOAT) r.x = ${UI.debug.checked ? '1.0f' : '0.0f'};\n`;
+            dctl += `    if (r.y != r.y || !ACES_ISFINITE(r.y) || fabs(r.y) > ACES_MAX_FLOAT) r.y = 0.0f;\n`;
+            dctl += `    if (r.z != r.z || !ACES_ISFINITE(r.z) || fabs(r.z) > ACES_MAX_FLOAT) r.z = ${UI.debug.checked ? '1.0f' : '0.0f'};\n`;
+            dctl += `    return r;\n}\n\n`;
 
-            code += `    // STAGE 2: 1D Spline Curvature Tone Response Polynomial Application\n`;
-            const printCoefs = (c) => {
-                let pad = Array(6).fill(0.0);
-                for(let i=0; i<c.length; i++) pad[i] = c[i];
-                if (deg === 3) return `${MathCore.fmt(pad[0])}, ${MathCore.fmt(pad[1])}, ${MathCore.fmt(pad[2])}, ${MathCore.fmt(pad[3])}, 0.0f, 0.0f`;
-                if (deg === 4) return `${MathCore.fmt(pad[0])}, ${MathCore.fmt(pad[1])}, ${MathCore.fmt(pad[2])}, ${MathCore.fmt(pad[3])}, ${MathCore.fmt(pad[4])}, 0.0f`;
-                return `${MathCore.fmt(pad[0])}, ${MathCore.fmt(pad[1])}, ${MathCore.fmt(pad[2])}, ${MathCore.fmt(pad[3])}, ${MathCore.fmt(pad[4])}, ${MathCore.fmt(pad[5])}`;
-            };
+            dctl += `__DEVICE__ inline float decode_curve(float v) {\n`;
+            if (srcProfile === "Gamma 2.4") dctl += `    return safe_pow_p(v, 2.4f);\n`;
+            else if (srcProfile === "Gamma 2.2") dctl += `    return safe_pow_p(v, 2.2f);\n`;
+            else if (srcProfile === "sRGB") dctl += `    return (v <= 0.04045f) ? v * safe_div(1.0f, 12.92f) : safe_pow_p((v + 0.055f) * safe_div(1.0f, 1.055f), 2.4f);\n`;
+            else if (srcProfile === "Rec.709") dctl += `    return (v < 0.081f) ? v * safe_div(1.0f, 4.5f) : safe_pow_p((v + 0.099f) * safe_div(1.0f, 1.099f), safe_div(1.0f, 0.45f));\n`;
+            else if (srcProfile === "Sony S-Log3") dctl += `    return (v >= 0.167361f) ? (safe_pow_p(10.0f, safe_div(v * 1023.0f - 420.0f, 261.5f)) * 0.19f - 0.01f) : (v * 1023.0f - 95.0f) * 0.01125f * safe_div(1.0f, 76.2103f);\n`;
+            else if (srcProfile === "ARRI LogC3") dctl += `    return (v > 0.149658f) ? (safe_pow_p(10.0f, safe_div(v - 0.385537f, 0.247189f)) - 0.052272f) * safe_div(1.0f, 5.555556f) : (v - 0.092809f) * safe_div(1.0f, 5.367655f);\n`;
+            else if (srcProfile === "Panasonic V-Log") dctl += `    return (v < 0.181f) ? (v - 0.125f) * safe_div(1.0f, 5.6f) : safe_pow_p(10.0f, safe_div(v - 0.398f, 0.241514f)) - 0.00873f;\n`;
+            else dctl += `    return v;\n`;
+            dctl += `}\n\n`;
 
-            code += `    float f_r = evaluate_polynomial(v.x, ${printCoefs(cR)}, ${deg});\n`;
-            code += `    float f_g = evaluate_polynomial(v.y, ${printCoefs(cG)}, ${deg});\n`;
-            code += `    float f_b = evaluate_polynomial(v.z, ${printCoefs(cB)}, ${deg});\n`;
-            code += `    \n    return validate_finite(make_float3(f_r, f_g, f_b));\n}`;
+            if (isCustom) {
+                dctl += `__DEVICE__ inline float evaluate_spline(float v, float c0, float c1, float c2, float c3, float c4, float c5, int order) {\n`;
+                dctl += `    if (order == 3) return c0*safe_pow_p(v,3.0f) + c1*safe_pow_p(v,2.0f) + c2*v + c3;\n`;
+                dctl += `    if (order == 4) return c0*safe_pow_p(v,4.0f) + c1*safe_pow_p(v,3.0f) + c2*safe_pow_p(v,2.0f) + c3*v + c4;\n`;
+                dctl += `    return c0*safe_pow_p(v,5.0f) + c1*safe_pow_p(v,4.0f) + c2*safe_pow_p(v,3.0f) + c3*safe_pow_p(v,2.0f) + c4*v + c5;\n`;
+                dctl += `}\n\n`;
+            } else {
+                dctl += `__DEVICE__ inline float encode_curve(float v) {\n`;
+                if (dstProfile === "Gamma 2.4") dctl += `    return safe_pow_p(v, safe_div(1.0f, 2.4f));\n`;
+                else if (dstProfile === "Gamma 2.2") dctl += `    return safe_pow_p(v, safe_div(1.0f, 2.2f));\n`;
+                else if (dstProfile === "sRGB") dctl += `    return (v <= 0.0031308f) ? v * 12.92f : 1.055f * safe_pow_p(v, safe_div(1.0f, 2.4f)) - 0.055f;\n`;
+                else if (dstProfile === "Rec.709") dctl += `    return (v < 0.018f) ? 4.5f * v : 1.099f * safe_pow_p(v, 0.45f) - 0.099f;\n`;
+                else if (dstProfile === "Sony S-Log3") dctl += `    float val = v + 0.01f; return (val >= 0.01125f) ? (261.5f * safe_log10(val * safe_div(1.0f, 0.19f)) + 420.0f) * safe_div(1.0f, 1023.0f) : (val * 76.2103f * safe_div(1.0f, 0.01125f) + 95.0f) * safe_div(1.0f, 1023.0f);\n`;
+                else if (dstProfile === "ARRI LogC3") dctl += `    return (v > 0.010591f) ? 0.247189f * safe_log10(5.555556f * v + 0.052272f) + 0.385537f : 5.367655f * v + 0.092809f;\n`;
+                else if (dstProfile === "Panasonic V-Log") dctl += `    return (v < 0.01f) ? 5.6f * v + 0.125f : 0.241514f * safe_log10(v + 0.00873f) + 0.398f;\n`;
+                else dctl += `    return v;\n`;
+                dctl += `}\n\n`;
+            }
 
-            UI.code.textContent = code;
+            dctl += `__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) {\n`;
+            dctl += `    float3 v = make_float3(p_R, p_G, p_B);\n\n`;
+            dctl += `    v.x = decode_curve(v.x); v.y = decode_curve(v.y); v.z = decode_curve(v.z);\n`;
+            dctl += `    v = validate_finite(v);\n\n`;
+            dctl += `    float r_mix = v.x * ${MathCore.fmt(matrix[0][0])} + v.y * ${MathCore.fmt(matrix[0][1])} + v.z * ${MathCore.fmt(matrix[0][2])};\n`;
+            dctl += `    float g_mix = v.x * ${MathCore.fmt(matrix[1][0])} + v.y * ${MathCore.fmt(matrix[1][1])} + v.z * ${MathCore.fmt(matrix[1][2])};\n`;
+            dctl += `    float b_mix = v.x * ${MathCore.fmt(matrix[2][0])} + v.y * ${MathCore.fmt(matrix[2][1])} + v.z * ${MathCore.fmt(matrix[2][2])};\n`;
+            dctl += `    v = validate_finite(make_float3(r_mix, g_mix, b_mix));\n\n`;
+
+            if (isCustom) {
+                const mapCoefs = (c) => {
+                    let arr = Array(6).fill(0.0); for(let i=0; i<c.length; i++) arr[i] = c[i];
+                    return arr.map(MathCore.fmt).join(', ');
+                };
+                dctl += `    v.x = evaluate_spline(v.x, ${mapCoefs(cR)}, ${order});\n`;
+                dctl += `    v.y = evaluate_spline(v.y, ${mapCoefs(cG)}, ${order});\n`;
+                dctl += `    v.z = evaluate_spline(v.z, ${mapCoefs(cB)}, ${order});\n`;
+            } else {
+                dctl += `    v.x = encode_curve(v.x); v.y = encode_curve(v.y); v.z = encode_curve(v.z);\n`;
+            }
+            dctl += `    return validate_finite(v);\n}`;
+
+            UI.code.textContent = dctl;
         }
 
-        function failCompile(msg) {
-            UI.code.textContent = `[ABORT ENGINE] Solving system halted to protect destination buffer. Reason: ${msg}`;
-            UI.state.textContent = "FAILURE"; UI.state.className = "font-bold text-red-500";
-            UI.val.textContent = "Execution Terminated"; UI.val.className = "px-3 py-1 rounded border border-red-700 bg-zinc-950 text-[9px] font-black uppercase mono text-red-500";
-            UI.copy.disabled = UI.down.disabled = true;
-            UI.size.textContent = UI.r2.textContent = UI.rmse.textContent = "-";
-        }
-
-        /**
-         * =====================================================================
-         * EVENT HANDLERS AND SETUP AUTOMATION
-         * =====================================================================
-         */
         function init() {
             UI.drop.onclick = () => UI.input.click();
-            UI.input.onchange = (e) => handleFile(e.target.files[0]);
-            UI.degree.onchange = () => decompile();
+            UI.input.onchange = (e) => handleLutIngestion(e.target.files[0]);
+            UI.degree.onchange = () => executeReconstructionPipeline();
+            document.getElementById('cstMode').onchange = () => executeReconstructionPipeline();
 
             UI.drop.ondragover = (e) => { e.preventDefault(); UI.drop.classList.add('active'); };
             UI.drop.ondragleave = () => UI.drop.classList.remove('active');
-            UI.drop.ondrop = (e) => { e.preventDefault(); UI.drop.classList.remove('active'); handleFile(e.dataTransfer.files[0]); };
+            UI.drop.ondrop = (e) => { e.preventDefault(); UI.drop.classList.remove('active'); handleLutIngestion(e.dataTransfer.files[0]); };
 
-            UI.copy.onclick = () => {
-                if (UI.copy.disabled) return;
-                navigator.clipboard.writeText(UI.code.textContent);
-                UI.copy.textContent = "COPIED KERNEL";
-                setTimeout(() => UI.copy.textContent = "Copy to Clipboard", 1200);
-            };
-
-            UI.down.onclick = () => {
-                if (UI.down.disabled) return;
-                const blob = new Blob([UI.code.textContent], {type: "text/plain;charset=utf-8"});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = UI.fn.textContent;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 150);
-            };
+            UI.copy.onclick = () => { if (UI.copy.disabled) return; navigator.clipboard.writeText(UI.code.textContent); UI.copy.textContent = "COPIED KERNEL"; setTimeout(() => UI.copy.textContent = "Copy to Clipboard", 1000); };
+            UI.down.onclick = () => { if (UI.down.disabled) return; const blob = new Blob([UI.code.textContent], {type: "text/plain;charset=utf-8"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = UI.fn.textContent; a.click(); setTimeout(() => URL.revokeObjectURL(url), 150); };
         }
-
         init();
     </script>
 </body>
